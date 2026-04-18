@@ -21,8 +21,6 @@ export interface Body {
   name: string;
   slug: string;
   category: BodyCategory;
-  legistar_client: string | null;
-  legistar_body_id: number | null;
   created_at: string;
 }
 
@@ -37,7 +35,8 @@ export interface Meeting {
   video_url: string | null;
   join_url: string | null;
   ai_summary: string | null;
-  legistar_event_id: number | null;
+  source: string;
+  external_id: string;
   created_at: string;
   updated_at: string;
 }

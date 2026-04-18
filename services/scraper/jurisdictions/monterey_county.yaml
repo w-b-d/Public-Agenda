@@ -1,0 +1,78 @@
+# Monterey County, California
+# Bodies are a mix of: Legistar (real-time scrape), and manual (created by
+# the scraper but populated with meeting data via supabase/seeds/manual_meetings.sql).
+
+jurisdiction:
+  name: "Monterey County"
+  slug: "monterey-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+bodies:
+  # ---- County government ----
+  - name: "Board of Supervisors"
+    slug: "board-of-supervisors"
+    category: "county_government"
+    adapter: "legistar"
+    config:
+      tenant: "monterey"
+      body_name: "Board of Supervisors"
+
+  - name: "Planning Commission"
+    slug: "planning-commission"
+    category: "county_government"
+    adapter: "legistar"
+    config:
+      tenant: "monterey"
+      body_name: "Planning Commission"
+
+  # ---- Municipal governments ----
+  - name: "City of Salinas - City Council"
+    slug: "salinas-city-council"
+    category: "municipal_government"
+    adapter: "legistar"
+    config:
+      tenant: "salinas"
+      body_name: "City Council"
+
+  - name: "City of Monterey - City Council"
+    slug: "monterey-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Pacific Grove - City Council"
+    slug: "pacific-grove-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Carmel-by-the-Sea - City Council"
+    slug: "carmel-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Seaside - City Council"
+    slug: "seaside-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Marina - City Council"
+    slug: "marina-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  # ---- Special districts ----
+  - name: "Monterey Peninsula Unified School District - Board of Education"
+    slug: "mpusd-board"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Monterey Peninsula Water Management District"
+    slug: "mpwmd-board"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Monterey Bay Air Resources District"
+    slug: "mbard-board"
+    category: "special_district"
+    adapter: "manual"
