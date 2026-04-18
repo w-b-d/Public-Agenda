@@ -1,0 +1,15 @@
+# Mendocino County, California
+
+jurisdiction:
+  name: "Mendocino County"
+  slug: "mendocino-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the mendocino legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: mendocino

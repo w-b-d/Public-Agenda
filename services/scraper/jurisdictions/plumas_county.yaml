@@ -1,0 +1,15 @@
+# Plumas County, California
+
+jurisdiction:
+  name: "Plumas County"
+  slug: "plumas-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the plumascoca civicclerk tenant.
+  - adapter: civicclerk
+    category: county_government
+    config:
+      tenant: plumascoca

@@ -77,10 +77,7 @@ export default function MeetingDetailScreen() {
 
         <Section title="Agenda">
           {meeting.agenda_url ? (
-            <LinkButton
-              label="Open agenda on Legistar"
-              url={meeting.agenda_url}
-            />
+            <LinkButton label="Open agenda" url={meeting.agenda_url} />
           ) : (
             <ThemedText style={styles.muted}>No agenda link.</ThemedText>
           )}

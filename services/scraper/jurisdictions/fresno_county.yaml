@@ -1,0 +1,16 @@
+# Fresno County, California
+# Distinct from Legistar 'fresno' which is City of Fresno
+
+jurisdiction:
+  name: "Fresno County"
+  slug: "fresno-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the fresnocounty legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: fresnocounty

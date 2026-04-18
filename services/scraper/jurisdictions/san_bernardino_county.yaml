@@ -1,0 +1,15 @@
+# San Bernardino County, California
+
+jurisdiction:
+  name: "San Bernardino County"
+  slug: "san-bernardino-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the sanbernardino legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: sanbernardino

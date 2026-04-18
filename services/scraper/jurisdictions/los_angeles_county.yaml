@@ -1,0 +1,15 @@
+# Los Angeles County, California
+
+jurisdiction:
+  name: "Los Angeles County"
+  slug: "los-angeles-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the lacounty legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: lacounty

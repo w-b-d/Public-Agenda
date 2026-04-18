@@ -1,0 +1,17 @@
+# Sierra County, California
+# CivicPlus AgendaCenter at sierracounty.ca.gov/AgendaCenter
+
+jurisdiction:
+  name: "Sierra County"
+  slug: "sierra-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+# CivicPlus AgendaCenter — adapter not yet built.
+
+bodies:
+  - name: "Board of Supervisors"
+    slug: "board-of-supervisors"
+    category: "county_government"
+    adapter: "manual"

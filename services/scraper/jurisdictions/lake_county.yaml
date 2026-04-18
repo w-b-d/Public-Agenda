@@ -1,0 +1,15 @@
+# Lake County, California
+
+jurisdiction:
+  name: "Lake County"
+  slug: "lake-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the countyoflake legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: countyoflake

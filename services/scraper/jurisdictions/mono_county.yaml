@@ -1,0 +1,15 @@
+# Mono County, California
+
+jurisdiction:
+  name: "Mono County"
+  slug: "mono-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the monococa civicclerk tenant.
+  - adapter: civicclerk
+    category: county_government
+    config:
+      tenant: monococa

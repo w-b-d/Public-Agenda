@@ -1,0 +1,16 @@
+# Butte County, California
+# Granicus is legacy video archive
+
+jurisdiction:
+  name: "Butte County"
+  slug: "butte-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the buttecoca civicclerk tenant.
+  - adapter: civicclerk
+    category: county_government
+    config:
+      tenant: buttecoca

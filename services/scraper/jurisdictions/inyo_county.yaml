@@ -1,0 +1,15 @@
+# Inyo County, California
+
+jurisdiction:
+  name: "Inyo County"
+  slug: "inyo-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the inyococa civicclerk tenant.
+  - adapter: civicclerk
+    category: county_government
+    config:
+      tenant: inyococa

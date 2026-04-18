@@ -1,0 +1,17 @@
+# Merced County, California
+# Custom agenda system at web2.co.merced.ca.us
+
+jurisdiction:
+  name: "Merced County"
+  slug: "merced-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+# No vendor adapter available — body is nav-only for now.
+
+bodies:
+  - name: "Board of Supervisors"
+    slug: "board-of-supervisors"
+    category: "county_government"
+    adapter: "manual"

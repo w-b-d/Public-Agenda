@@ -1,0 +1,15 @@
+# Santa Barbara County, California
+
+jurisdiction:
+  name: "Santa Barbara County"
+  slug: "santa-barbara-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the santabarbara legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: santabarbara

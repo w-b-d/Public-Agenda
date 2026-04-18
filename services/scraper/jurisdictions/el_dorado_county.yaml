@@ -1,0 +1,15 @@
+# El Dorado County, California
+
+jurisdiction:
+  name: "El Dorado County"
+  slug: "el-dorado-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the eldorado legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: eldorado

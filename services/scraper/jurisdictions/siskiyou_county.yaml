@@ -1,0 +1,17 @@
+# Siskiyou County, California
+# Custom BOS agenda site at bosagenda.co.siskiyou.ca.us
+
+jurisdiction:
+  name: "Siskiyou County"
+  slug: "siskiyou-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+# No vendor adapter available — body is nav-only for now.
+
+bodies:
+  - name: "Board of Supervisors"
+    slug: "board-of-supervisors"
+    category: "county_government"
+    adapter: "manual"

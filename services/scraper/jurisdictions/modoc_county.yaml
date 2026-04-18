@@ -1,0 +1,16 @@
+# Modoc County, California
+# IQM2 legacy still reachable
+
+jurisdiction:
+  name: "Modoc County"
+  slug: "modoc-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the modoccoca civicclerk tenant.
+  - adapter: civicclerk
+    category: county_government
+    config:
+      tenant: modoccoca
