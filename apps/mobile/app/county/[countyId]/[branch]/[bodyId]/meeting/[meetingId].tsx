@@ -22,6 +22,7 @@ import {
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BottomNav from '@/components/BottomNav';
+import { MeetingChat } from '@/components/meeting-chat';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getMeeting } from '@/lib/queries';
@@ -203,6 +204,12 @@ export default function MeetingDetailScreen() {
           )}
         </Section>
 
+        {!isUpcoming ? (
+          <Section title="Ask about this meeting">
+            <MeetingChat context={buildChatContext(meeting)} />
+          </Section>
+        ) : null}
+
         <Footer />
       </ScrollView>
 
@@ -261,6 +268,16 @@ function LinkButton({ label, url }: { label: string; url: string }) {
       <ArrowUpRight size={15} color="#ffffff" />
     </Pressable>
   );
+}
+
+function buildChatContext(meeting: Meeting): string {
+  const parts = [
+    `Title: ${meeting.title}`,
+    `Date: ${formatDateTime(meeting.start_time)}`,
+  ];
+  if (meeting.location) parts.push(`Location: ${meeting.location}`);
+  if (meeting.ai_summary) parts.push(`Summary:\n${meeting.ai_summary}`);
+  return parts.join('\n\n');
 }
 
 function formatDateTime(iso: string) {
