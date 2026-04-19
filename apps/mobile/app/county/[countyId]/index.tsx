@@ -12,12 +12,14 @@ import {
 import { Calendar as RNCalendar } from 'react-native-calendars';
 import {
   ArrowRight,
+  Check,
   ChevronRight,
   Clock3,
   MapPin,
   Search,
   User as UserIcon,
   Video,
+  X,
 } from 'lucide-react-native';
 
 import Header from '@/components/Header';
@@ -30,7 +32,11 @@ import {
   listBodiesForCounty,
   listMeetingsForCounty,
 } from '@/lib/queries';
-import { listMembersForBodies } from '@/lib/queries/people';
+import {
+  listMembersForBodies,
+  listRolesForPeople,
+  type PersonRoleSpan,
+} from '@/lib/queries/people';
 import type { Body, Jurisdiction, Meeting, PersonWithRole } from '@/types/db';
 
 type MeetingWithBody = Meeting & {
@@ -59,6 +65,55 @@ function getMeetingBodyId(meeting: MeetingWithBody) {
   return meeting.body?.id ?? meeting.body_id ?? '';
 }
 
+/**
+ * True if the meeting passes the selected-people filter: for EACH
+ * selected person, there must exist a role on the meeting's body that
+ * qualifies. Qualification is asymmetric by meeting time:
+ *
+ *   - PAST meeting: just having a role on this body is enough. Legistar's
+ *     OfficeRecordEndDate is often a bureaucratic term-end, not a signal
+ *     that the person stopped participating, so we don't over-filter past
+ *     appearances (e.g. Glenn Church speaking at a Measure AA meeting
+ *     after his formal role ended).
+ *
+ *   - FUTURE meeting: the role must still be active — start_date (if
+ *     known) on or before the meeting, end_date (if set) on or after.
+ *     This prevents a former supervisor from surfacing meetings that
+ *     haven't happened yet.
+ *
+ * Intersect semantics across selected people: matches the body-checkbox
+ * filter's composition.
+ */
+function meetingPassesPersonFilter(
+  meeting: MeetingWithBody,
+  selectedPeople: string[],
+  rolesByPerson: Map<string, Map<string, PersonRoleSpan[]>>,
+  todayISO: string,
+): boolean {
+  if (selectedPeople.length === 0) return true;
+  const bodyId = getMeetingBodyId(meeting);
+  if (!bodyId) return false;
+  const meetingDay = meeting.start_time?.slice(0, 10) ?? '';
+  const isFuture = meetingDay >= todayISO;
+
+  for (const personId of selectedPeople) {
+    const byBody = rolesByPerson.get(personId);
+    if (!byBody) return false;
+    const spans = byBody.get(bodyId) ?? [];
+    if (spans.length === 0) return false;
+    if (isFuture) {
+      const anyActive = spans.some(
+        (s) =>
+          (!s.start_date || s.start_date <= meetingDay) &&
+          (!s.end_date || s.end_date >= meetingDay),
+      );
+      if (!anyActive) return false;
+    }
+    // Past: role existence on this body is sufficient.
+  }
+  return true;
+}
+
 export default function CountyDashboard() {
   const { countyId } = useLocalSearchParams<{ countyId: string }>();
   const router = useRouter();
@@ -83,6 +138,13 @@ export default function CountyDashboard() {
   const [members, setMembers] = useState<PersonWithRole[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersVisible, setMembersVisible] = useState(20);
+
+  // Person-level filter: when non-empty, the Chronicle further narrows to
+  // meetings of bodies these people have or had a role on AND whose
+  // date falls inside the person's role span on that body. Stored as raw
+  // (person, body, start, end) tuples for meeting-by-meeting filtering.
+  const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
+  const [peopleRoles, setPeopleRoles] = useState<PersonRoleSpan[]>([]);
 
   useEffect(() => {
     if (!countyId) return;
@@ -283,10 +345,58 @@ export default function CountyDashboard() {
       .finally(() => setMembersLoading(false));
   }, [filteredBodyIds]);
 
+  // When the selected-people set changes, fetch every role span (body +
+  // date range) those people have or had. Used for meeting-by-meeting
+  // time-aware filtering so a former supervisor no longer surfaces
+  // *upcoming* meetings of a body they've left.
+  useEffect(() => {
+    if (selectedPeople.length === 0) {
+      setPeopleRoles([]);
+      return;
+    }
+    listRolesForPeople(selectedPeople).then(setPeopleRoles);
+  }, [selectedPeople]);
+
+  // Index role spans by person for per-meeting checking. Each person gets
+  // a Map<body_id, RoleSpan[]> so `meetingPassesPersonFilter` doesn't need
+  // to scan the whole array per call.
+  const rolesByPerson = useMemo(() => {
+    const byPerson = new Map<string, Map<string, PersonRoleSpan[]>>();
+    for (const r of peopleRoles) {
+      let byBody = byPerson.get(r.person_id);
+      if (!byBody) {
+        byBody = new Map();
+        byPerson.set(r.person_id, byBody);
+      }
+      const existing = byBody.get(r.body_id) ?? [];
+      existing.push(r);
+      byBody.set(r.body_id, existing);
+    }
+    return byPerson;
+  }, [peopleRoles]);
+
+  const togglePerson = (personId: string) => {
+    setSelectedPeople((prev) =>
+      prev.includes(personId)
+        ? prev.filter((id) => id !== personId)
+        : [...prev, personId],
+    );
+  };
+
+  const clearSelectedPeople = () => setSelectedPeople([]);
+
   const filteredMeetings = useMemo(() => {
+    const allowedBodies = new Set(filteredBodyIds);
+    const today = new Date().toISOString().slice(0, 10);
     let result = meetings.filter((meeting) => {
       const meetingBodyId = getMeetingBodyId(meeting);
-      return !!meetingBodyId && selectedBodies.includes(meetingBodyId);
+      if (!meetingBodyId || !allowedBodies.has(meetingBodyId)) return false;
+      return meetingPassesPersonFilter(
+        meeting,
+        selectedPeople,
+        rolesByPerson,
+        today,
+      );
     });
 
     if (normalizedSearch) {
@@ -310,7 +420,14 @@ export default function CountyDashboard() {
     }
 
     return result;
-  }, [meetings, normalizedSearch, selectedBodies, selectedDate]);
+  }, [
+    meetings,
+    normalizedSearch,
+    filteredBodyIds,
+    selectedPeople,
+    rolesByPerson,
+    selectedDate,
+  ]);
 
   const markedDates = useMemo(() => {
     const marks: Record<
@@ -323,6 +440,8 @@ export default function CountyDashboard() {
       }
     > = {};
 
+    const allowedBodies = new Set(filteredBodyIds);
+    const today = new Date().toISOString().slice(0, 10);
     const calendarMeetings = meetings.filter((meeting) => {
       const matchesSearch = normalizedSearch
         ? (() => {
@@ -339,10 +458,15 @@ export default function CountyDashboard() {
         : true;
 
       const meetingBodyId = getMeetingBodyId(meeting);
-      const matchesBodies =
-        !!meetingBodyId && selectedBodies.includes(meetingBodyId);
+      const matchesBodies = !!meetingBodyId && allowedBodies.has(meetingBodyId);
+      if (!matchesSearch || !matchesBodies) return false;
 
-      return matchesSearch && matchesBodies;
+      return meetingPassesPersonFilter(
+        meeting,
+        selectedPeople,
+        rolesByPerson,
+        today,
+      );
     });
 
     for (const meeting of calendarMeetings) {
@@ -363,7 +487,14 @@ export default function CountyDashboard() {
     }
 
     return marks;
-  }, [meetings, normalizedSearch, selectedBodies, selectedDate]);
+  }, [
+    meetings,
+    normalizedSearch,
+    filteredBodyIds,
+    selectedPeople,
+    rolesByPerson,
+    selectedDate,
+  ]);
 
   const nowIso = new Date().toISOString();
 
@@ -612,7 +743,10 @@ export default function CountyDashboard() {
                   normalizedSearch.length > 0
                 }
                 totalBodies={filteredBodyIds.length}
-                onPress={goToPerson}
+                selectedPeople={selectedPeople}
+                onToggleSelect={togglePerson}
+                onClearSelected={clearSelectedPeople}
+                onOpen={goToPerson}
                 onShowMore={() => setMembersVisible((n) => n + 20)}
               />
             </View>
@@ -626,6 +760,8 @@ export default function CountyDashboard() {
                   <ThemedText style={styles.feedSubtitle}>
                     {selectedDate
                       ? `Filtered by ${selectedDate}`
+                      : selectedPeople.length > 0
+                      ? `Meetings of ${selectedPeople.length} selected official${selectedPeople.length === 1 ? '' : 's'} — bodies they've served on`
                       : 'All tracked meetings for this county.'}
                   </ThemedText>
                 </View>
@@ -678,7 +814,10 @@ function MembersBlock({
   loading,
   filterActive,
   totalBodies,
-  onPress,
+  selectedPeople,
+  onToggleSelect,
+  onClearSelected,
+  onOpen,
   onShowMore,
 }: {
   members: PersonWithRole[];
@@ -686,17 +825,26 @@ function MembersBlock({
   loading: boolean;
   filterActive: boolean;
   totalBodies: number;
-  onPress: (id: string) => void;
+  selectedPeople: string[];
+  onToggleSelect: (id: string) => void;
+  onClearSelected: () => void;
+  onOpen: (id: string) => void;
   onShowMore: () => void;
 }) {
   const shown = members.slice(0, visible);
   const remaining = Math.max(members.length - visible, 0);
 
+  const currentCount = members.filter((m) => m.isCurrent).length;
+  const pastCount = members.length - currentCount;
+
   const subtitle = filterActive
-    ? `${members.length} current members across ${totalBodies} ${
+    ? `${currentCount} current${pastCount > 0 ? ` + ${pastCount} former` : ''} across ${totalBodies} ${
         totalBodies === 1 ? 'body' : 'bodies'
       }`
-    : `${members.length} current officials tracked in this county`;
+    : `${currentCount} current${pastCount > 0 ? ` + ${pastCount} former` : ''} officials tracked`;
+
+  // Build a map for quick lookup when rendering pills at top.
+  const selectedMembers = members.filter((m) => selectedPeople.includes(m.person.id));
 
   return (
     <View style={styles.membersBlock}>
@@ -704,8 +852,36 @@ function MembersBlock({
         <View style={{ flex: 1 }}>
           <ThemedText style={styles.feedTitle}>Public Officials</ThemedText>
           <ThemedText style={styles.feedSubtitle}>{subtitle}</ThemedText>
+          {selectedPeople.length > 0 ? (
+            <ThemedText style={[styles.feedSubtitle, { marginTop: 4 }]}>
+              Filtering events by {selectedPeople.length} selected.{' '}
+              <ThemedText
+                style={styles.clearFilter}
+                onPress={onClearSelected}
+              >
+                Clear
+              </ThemedText>
+            </ThemedText>
+          ) : null}
         </View>
       </View>
+
+      {selectedMembers.length > 0 ? (
+        <View style={styles.pillsRow}>
+          {selectedMembers.map(({ person }) => (
+            <Pressable
+              key={person.id}
+              style={styles.pill}
+              onPress={() => onToggleSelect(person.id)}
+            >
+              <ThemedText style={styles.pillText} numberOfLines={1}>
+                {person.name}
+              </ThemedText>
+              <X size={12} color="#ffffff" />
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
 
       {loading && members.length === 0 ? (
         <View style={styles.membersLoadingCard}>
@@ -720,27 +896,51 @@ function MembersBlock({
       ) : (
         <>
           <View style={styles.membersList}>
-            {shown.map(({ person, role }) => (
-              <Pressable
-                key={person.id}
-                style={styles.memberCard}
-                onPress={() => onPress(person.id)}
-              >
-                <View style={styles.memberAvatar}>
-                  <UserIcon size={18} color="#0b2a6f" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <ThemedText style={styles.memberName}>
-                    {person.name}
-                  </ThemedText>
-                  <ThemedText style={styles.memberMeta} numberOfLines={1}>
-                    {role.title ?? 'Member'}
-                    {role.district ? ` · ${role.district}` : ''}
-                  </ThemedText>
-                </View>
-                <ChevronRight size={18} color="#7c8798" />
-              </Pressable>
-            ))}
+            {shown.map(({ person, role, isCurrent }) => {
+              const selected = selectedPeople.includes(person.id);
+              return (
+                <Pressable
+                  key={person.id}
+                  style={[
+                    styles.memberCard,
+                    selected && styles.memberCardSelected,
+                  ]}
+                  onPress={() => onToggleSelect(person.id)}
+                  onLongPress={() => onOpen(person.id)}
+                  delayLongPress={350}
+                >
+                  <View style={styles.memberAvatar}>
+                    {selected ? (
+                      <Check size={18} color="#ffffff" />
+                    ) : (
+                      <UserIcon size={18} color="#0b2a6f" />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.memberNameRow}>
+                      <ThemedText
+                        style={styles.memberName}
+                        numberOfLines={1}
+                      >
+                        {person.name}
+                      </ThemedText>
+                      {!isCurrent ? (
+                        <View style={styles.formerChip}>
+                          <ThemedText style={styles.formerChipText}>
+                            FORMER
+                          </ThemedText>
+                        </View>
+                      ) : null}
+                    </View>
+                    <ThemedText style={styles.memberMeta} numberOfLines={1}>
+                      {role.title ?? 'Member'}
+                      {role.district ? ` · ${role.district}` : ''}
+                    </ThemedText>
+                  </View>
+                  <ChevronRight size={18} color="#7c8798" />
+                </Pressable>
+              );
+            })}
           </View>
 
           {remaining > 0 ? (
@@ -1367,6 +1567,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(120,130,150,0.10)',
   },
 
+  memberCardSelected: {
+    backgroundColor: 'rgba(11,42,111,0.06)',
+    borderColor: '#0b2a6f',
+  },
+
   memberAvatar: {
     width: 36,
     height: 36,
@@ -1376,10 +1581,57 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+
   memberName: {
     fontSize: 15,
     fontWeight: '800',
     color: '#0b2a6f',
+    flexShrink: 1,
+  },
+
+  formerChip: {
+    backgroundColor: 'rgba(124,135,152,0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+
+  formerChipText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#7c8798',
+    letterSpacing: 0.8,
+  },
+
+  pillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0b2a6f',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    gap: 6,
+    maxWidth: '100%',
+  },
+
+  pillText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+    flexShrink: 1,
   },
 
   memberMeta: {
