@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { MeetingChat } from '@/components/meeting-chat';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getMeeting } from '@/lib/queries';
@@ -113,6 +114,12 @@ export default function MeetingDetailScreen() {
             <ThemedText style={styles.muted}>No video available.</ThemedText>
           )}
         </Section>
+
+        {!isUpcoming ? (
+          <Section title="Ask about this meeting">
+            <MeetingChat context={buildChatContext(meeting)} />
+          </Section>
+        ) : null}
       </ScrollView>
     </ThemedView>
   );
@@ -154,6 +161,16 @@ function LinkButton({ label, url }: { label: string; url: string }) {
       <ThemedText style={styles.linkBtnText}>{label}</ThemedText>
     </Pressable>
   );
+}
+
+function buildChatContext(meeting: Meeting): string {
+  const parts = [
+    `Title: ${meeting.title}`,
+    `Date: ${formatDateTime(meeting.start_time)}`,
+  ];
+  if (meeting.location) parts.push(`Location: ${meeting.location}`);
+  if (meeting.ai_summary) parts.push(`Summary:\n${meeting.ai_summary}`);
+  return parts.join('\n\n');
 }
 
 function formatDateTime(iso: string) {
