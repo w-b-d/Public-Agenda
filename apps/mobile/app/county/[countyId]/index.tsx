@@ -195,6 +195,26 @@ export default function CountyDashboard() {
     return groups;
   }, [bodies]);
 
+  const advancedFilterCounts = useMemo(() => {
+    const branchCounts = new Map<string, number>();
+    const bodyCounts = new Map<string, number>();
+
+    for (const meeting of meetings) {
+      const bodyId = getMeetingBodyId(meeting);
+      const branch = meeting.body?.category?.trim();
+
+      if (bodyId) {
+        bodyCounts.set(bodyId, (bodyCounts.get(bodyId) ?? 0) + 1);
+      }
+
+      if (branch) {
+        branchCounts.set(branch, (branchCounts.get(branch) ?? 0) + 1);
+      }
+    }
+
+    return { branchCounts, bodyCounts };
+  }, [meetings]);
+
   const suggestions = useMemo(() => {
     if (!normalizedSearch) return [];
 
@@ -445,16 +465,16 @@ export default function CountyDashboard() {
     const calendarMeetings = meetings.filter((meeting) => {
       const matchesSearch = normalizedSearch
         ? (() => {
-            const bodyName = meeting.body?.name?.toLowerCase() ?? '';
-            const branchName = meeting.body?.category?.toLowerCase() ?? '';
-            const title = meeting.title?.toLowerCase() ?? '';
+          const bodyName = meeting.body?.name?.toLowerCase() ?? '';
+          const branchName = meeting.body?.category?.toLowerCase() ?? '';
+          const title = meeting.title?.toLowerCase() ?? '';
 
-            return (
-              bodyName.includes(normalizedSearch) ||
-              branchName.includes(normalizedSearch) ||
-              title.includes(normalizedSearch)
-            );
-          })()
+          return (
+            bodyName.includes(normalizedSearch) ||
+            branchName.includes(normalizedSearch) ||
+            title.includes(normalizedSearch)
+          );
+        })()
         : true;
 
       const meetingBodyId = getMeetingBodyId(meeting);
@@ -610,7 +630,7 @@ export default function CountyDashboard() {
                       style={[
                         styles.suggestionRow,
                         index !== suggestions.length - 1 &&
-                          styles.suggestionRowBorder,
+                        styles.suggestionRowBorder,
                       ]}
                       onPress={() => {
                         setSearchText(item.value);
@@ -678,7 +698,7 @@ export default function CountyDashboard() {
                           >
                             <Checkbox checked={isBranchSelected(branch)} />
                             <ThemedText style={styles.branchTitle}>
-                              {branch.toUpperCase()}
+                              {branch.toUpperCase()} ({advancedFilterCounts.branchCounts.get(branch) ?? 0})
                             </ThemedText>
                           </Pressable>
 
@@ -693,7 +713,7 @@ export default function CountyDashboard() {
                                   checked={selectedBodies.includes(body.id)}
                                 />
                                 <ThemedText style={styles.bodyRowText}>
-                                  {body.name}
+                                  {body.name} ({advancedFilterCounts.bodyCounts.get(body.id) ?? 0})
                                 </ThemedText>
                               </Pressable>
                             ))}
@@ -761,8 +781,8 @@ export default function CountyDashboard() {
                     {selectedDate
                       ? `Filtered by ${selectedDate}`
                       : selectedPeople.length > 0
-                      ? `Meetings of ${selectedPeople.length} selected official${selectedPeople.length === 1 ? '' : 's'} — bodies they've served on`
-                      : 'All tracked meetings for this county.'}
+                        ? `Meetings of ${selectedPeople.length} selected official${selectedPeople.length === 1 ? '' : 's'} — bodies they've served on`
+                        : 'All tracked meetings for this county.'}
                   </ThemedText>
                 </View>
 
@@ -838,9 +858,8 @@ function MembersBlock({
   const pastCount = members.length - currentCount;
 
   const subtitle = filterActive
-    ? `${currentCount} current${pastCount > 0 ? ` + ${pastCount} former` : ''} across ${totalBodies} ${
-        totalBodies === 1 ? 'body' : 'bodies'
-      }`
+    ? `${currentCount} current${pastCount > 0 ? ` + ${pastCount} former` : ''} across ${totalBodies} ${totalBodies === 1 ? 'body' : 'bodies'
+    }`
     : `${currentCount} current${pastCount > 0 ? ` + ${pastCount} former` : ''} officials tracked`;
 
   // Build a map for quick lookup when rendering pills at top.
