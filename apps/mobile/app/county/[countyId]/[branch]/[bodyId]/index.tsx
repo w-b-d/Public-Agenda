@@ -229,13 +229,17 @@ function MembersSection({
     );
   }
 
+  const currentCount = members.filter((m) => m.isCurrent).length;
+  const pastCount = members.length - currentCount;
+
   return (
     <View style={styles.membersBlock}>
       <ThemedText style={styles.sectionTitle}>
-        Members ({members.length})
+        Members ({currentCount}
+        {pastCount > 0 ? ` + ${pastCount} former` : ''})
       </ThemedText>
       <View style={styles.membersList}>
-        {members.map(({ person, role }) => (
+        {members.map(({ person, role, isCurrent }) => (
           <Pressable
             key={role.id}
             style={styles.memberCard}
@@ -245,7 +249,16 @@ function MembersSection({
               <UserIcon size={18} color="#0b2a6f" />
             </View>
             <View style={styles.memberMain}>
-              <ThemedText style={styles.memberName}>{person.name}</ThemedText>
+              <View style={styles.memberNameRow}>
+                <ThemedText style={styles.memberName} numberOfLines={1}>
+                  {person.name}
+                </ThemedText>
+                {!isCurrent ? (
+                  <View style={styles.formerChip}>
+                    <ThemedText style={styles.formerChipText}>FORMER</ThemedText>
+                  </View>
+                ) : null}
+              </View>
               <ThemedText style={styles.memberMeta}>
                 {role.title ?? 'Member'}
                 {role.district ? ` · ${role.district}` : ''}
@@ -627,6 +640,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: '#0b2a6f',
+    flexShrink: 1,
+  },
+
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+
+  formerChip: {
+    backgroundColor: 'rgba(124,135,152,0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+
+  formerChipText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#7c8798',
+    letterSpacing: 0.8,
   },
 
   memberMeta: {

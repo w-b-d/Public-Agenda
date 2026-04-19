@@ -87,6 +87,8 @@ export interface BodyRef {
 export interface PersonWithRole {
   person: Person;
   role: Role;
+  /** True if role.end_date is null or today-or-later. Set by the query layer. */
+  isCurrent: boolean;
 }
 
 /** A person's role with its body denormalized for display. */
