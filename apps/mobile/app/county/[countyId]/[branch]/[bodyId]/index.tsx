@@ -10,8 +10,10 @@ import {
 import { Calendar as RNCalendar } from 'react-native-calendars';
 import {
   ArrowRight,
+  ChevronRight,
   Clock3,
   MapPin,
+  User as UserIcon,
   Video,
 } from 'lucide-react-native';
 
@@ -21,7 +23,8 @@ import BottomNav from '@/components/BottomNav';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getBody, listMeetingsForBody } from '@/lib/queries';
-import type { Body, Meeting } from '@/types/db';
+import { listBodyMembers } from '@/lib/queries/people';
+import type { Body, Meeting, PersonWithRole } from '@/types/db';
 
 export default function BodyCalendarScreen() {
   const { countyId, branch, bodyId } = useLocalSearchParams<{
@@ -34,6 +37,7 @@ export default function BodyCalendarScreen() {
 
   const [body, setBody] = useState<Body | null>(null);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [members, setMembers] = useState<PersonWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('calendar');
@@ -41,10 +45,15 @@ export default function BodyCalendarScreen() {
   useEffect(() => {
     if (!bodyId) return;
 
-    Promise.all([getBody(bodyId), listMeetingsForBody(bodyId)])
-      .then(([b, m]) => {
+    Promise.all([
+      getBody(bodyId),
+      listMeetingsForBody(bodyId),
+      listBodyMembers(bodyId),
+    ])
+      .then(([b, m, ms]) => {
         setBody(b);
         setMeetings(m ?? []);
+        setMembers(ms ?? []);
       })
       .finally(() => setLoading(false));
   }, [bodyId]);
@@ -101,6 +110,10 @@ export default function BodyCalendarScreen() {
     router.push(`/county/${countyId}/${branch}/${bodyId}/meeting/${meetingId}`);
   };
 
+  const goToPerson = (personId: string) => {
+    router.push(`/person/${personId}`);
+  };
+
   return (
     <ThemedView style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -124,6 +137,8 @@ export default function BodyCalendarScreen() {
               {meetings.length} meetings loaded. Tap a date to filter the archive.
             </ThemedText>
           </View>
+
+          <MembersSection members={members} onPress={goToPerson} />
 
           <View style={styles.calendarCard}>
             <RNCalendar
@@ -191,6 +206,56 @@ export default function BodyCalendarScreen() {
 
       <BottomNav activeTab={activeTab} onChangeTab={setActiveTab} />
     </ThemedView>
+  );
+}
+
+function MembersSection({
+  members,
+  onPress,
+}: {
+  members: PersonWithRole[];
+  onPress: (id: string) => void;
+}) {
+  if (members.length === 0) {
+    return (
+      <View style={styles.membersBlock}>
+        <ThemedText style={styles.sectionTitle}>Members</ThemedText>
+        <View style={styles.membersEmpty}>
+          <ThemedText style={styles.membersEmptyText}>
+            Member roster not yet available for this body.
+          </ThemedText>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.membersBlock}>
+      <ThemedText style={styles.sectionTitle}>
+        Members ({members.length})
+      </ThemedText>
+      <View style={styles.membersList}>
+        {members.map(({ person, role }) => (
+          <Pressable
+            key={role.id}
+            style={styles.memberCard}
+            onPress={() => onPress(person.id)}
+          >
+            <View style={styles.memberAvatar}>
+              <UserIcon size={18} color="#0b2a6f" />
+            </View>
+            <View style={styles.memberMain}>
+              <ThemedText style={styles.memberName}>{person.name}</ThemedText>
+              <ThemedText style={styles.memberMeta}>
+                {role.title ?? 'Member'}
+                {role.district ? ` · ${role.district}` : ''}
+              </ThemedText>
+            </View>
+            <ChevronRight size={18} color="#7c8798" />
+          </Pressable>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -523,5 +588,66 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6b7280',
     fontSize: 14,
+  },
+
+  membersBlock: {
+    marginBottom: 28,
+  },
+
+  membersList: {
+    gap: 8,
+  },
+
+  memberCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(120,130,150,0.10)',
+  },
+
+  memberAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(11,42,111,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  memberMain: {
+    flex: 1,
+  },
+
+  memberName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0b2a6f',
+  },
+
+  memberMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#7c8798',
+    fontWeight: '600',
+  },
+
+  membersEmpty: {
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(120,130,150,0.10)',
+  },
+
+  membersEmptyText: {
+    fontSize: 13,
+    color: '#7c8798',
+    textAlign: 'center',
   },
 });
