@@ -1,0 +1,16 @@
+# San Francisco County, California
+# Consolidated city-county government
+
+jurisdiction:
+  name: "San Francisco County"
+  slug: "san-francisco-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the sfgov legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: sfgov

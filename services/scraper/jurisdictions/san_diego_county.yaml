@@ -1,0 +1,15 @@
+# San Diego County, California
+
+jurisdiction:
+  name: "San Diego County"
+  slug: "san-diego-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the sdcounty legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: sdcounty

@@ -1,0 +1,120 @@
+# Santa Cruz County, California
+#
+# County BoS + commissions live on Granicus IQM2 (no adapter yet → manual).
+# Several special districts are on CivicClerk → tenant-wide auto-enumeration.
+#
+# Naming convention: bodies belonging to the county itself get no prefix
+# (so "Board of Supervisors" not "Santa Cruz County - Board of Supervisors")
+# — this lets a future IQM2 adapter match them by name when it lands.
+# Bodies belonging to cities/districts within the county DO get a prefix
+# to disambiguate.
+
+jurisdiction:
+  name: "Santa Cruz County"
+  slug: "santa-cruz-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # County government — PrimeGov (OneMeeting) auto-enumerates BoS + all
+  # county commissions/boards. Note: PrimeGov doesn't expose video URLs
+  # in its API; Swagit-hosted video URL resolution is a separate follow-up.
+  - adapter: primegov
+    category: county_government
+    config:
+      tenant: santacruzcountyca
+
+  # Soquel Creek Water District — CivicClerk.
+  - adapter: civicclerk
+    category: special_district
+    name_prefix: "Soquel Creek Water District - "
+    config:
+      tenant: soquelcreekwater
+
+  # San Lorenzo Valley Water District — CivicClerk.
+  - adapter: civicclerk
+    category: special_district
+    name_prefix: "San Lorenzo Valley Water District - "
+    config:
+      tenant: slvwd
+
+  # Central Fire District of Santa Cruz County — CivicClerk.
+  - adapter: civicclerk
+    category: special_district
+    name_prefix: "Central Fire District - "
+    config:
+      tenant: centralfiresc
+
+bodies:
+  # County government bodies (BoS, Planning Commission, Assessment Appeals
+  # Board, Flood Control districts, etc.) are auto-enumerated by the
+  # primegov source above. No manual entries needed here.
+
+  # ---- Cities ----
+  - name: "City of Santa Cruz - City Council"
+    slug: "santa-cruz-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Watsonville - City Council"
+    slug: "watsonville-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Capitola - City Council"
+    slug: "capitola-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Capitola - Planning Commission"
+    slug: "capitola-planning-commission"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Scotts Valley - City Council"
+    slug: "scotts-valley-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  # ---- Special districts on platforms without adapters ----
+  - name: "Scotts Valley Water District"
+    slug: "scotts-valley-water"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Pajaro Valley Water Management Agency"
+    slug: "pv-water"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Pajaro Valley Health Care District (Watsonville Community Hospital)"
+    slug: "pv-health-care"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Santa Cruz Metropolitan Transit District"
+    slug: "santa-cruz-metro"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Santa Cruz County Regional Transportation Commission"
+    slug: "sccrtc"
+    category: "special_district"
+    adapter: "manual"
+
+  # School districts on BoardDocs.
+  - name: "Pajaro Valley Unified School District - Board"
+    slug: "pvusd-board"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Cabrillo Community College District - Board"
+    slug: "cabrillo-board"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Santa Cruz City Schools - Board"
+    slug: "sccs-board"
+    category: "special_district"
+    adapter: "manual"

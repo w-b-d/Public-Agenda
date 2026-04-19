@@ -1,0 +1,16 @@
+# Sonoma County, California
+# Tenant slug is hyphenated
+
+jurisdiction:
+  name: "Sonoma County"
+  slug: "sonoma-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the sonoma-county legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: sonoma-county

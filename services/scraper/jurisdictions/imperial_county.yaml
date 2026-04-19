@@ -1,0 +1,15 @@
+# Imperial County, California
+
+jurisdiction:
+  name: "Imperial County"
+  slug: "imperial-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the imperialca civicclerk tenant.
+  - adapter: civicclerk
+    category: county_government
+    config:
+      tenant: imperialca

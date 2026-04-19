@@ -1,0 +1,16 @@
+# Colusa County, California
+# New as of Nov 2025
+
+jurisdiction:
+  name: "Colusa County"
+  slug: "colusa-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the colusacoca civicclerk tenant.
+  - adapter: civicclerk
+    category: county_government
+    config:
+      tenant: colusacoca

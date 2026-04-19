@@ -1,0 +1,15 @@
+# San Mateo County, California
+
+jurisdiction:
+  name: "San Mateo County"
+  slug: "san-mateo-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the sanmateocounty legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: sanmateocounty

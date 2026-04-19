@@ -1,0 +1,22 @@
+# Sutter County, California
+
+jurisdiction:
+  name: "Sutter County"
+  slug: "sutter-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+# Granicus IQM2 (tenant: suttercountyca) — adapter not yet built.
+# When the IQM2 adapter lands, replace this bodies block with:
+#   sources:
+#     - adapter: iqm2
+#       category: county_government
+#       config:
+#         tenant: suttercountyca
+
+bodies:
+  - name: "Board of Supervisors"
+    slug: "board-of-supervisors"
+    category: "county_government"
+    adapter: "manual"

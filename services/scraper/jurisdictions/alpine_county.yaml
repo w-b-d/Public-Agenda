@@ -1,0 +1,15 @@
+# Alpine County, California
+
+jurisdiction:
+  name: "Alpine County"
+  slug: "alpine-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the alpinecoca civicclerk tenant.
+  - adapter: civicclerk
+    category: county_government
+    config:
+      tenant: alpinecoca

@@ -1,0 +1,16 @@
+# Tehama County, California
+# IQM2 legacy still reachable
+
+jurisdiction:
+  name: "Tehama County"
+  slug: "tehama-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the tehamacounty legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: tehamacounty

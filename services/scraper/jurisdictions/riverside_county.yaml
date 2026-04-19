@@ -1,0 +1,22 @@
+# Riverside County, California
+
+jurisdiction:
+  name: "Riverside County"
+  slug: "riverside-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+# Granicus IQM2 (tenant: riversidecountyca) — adapter not yet built.
+# When the IQM2 adapter lands, replace this bodies block with:
+#   sources:
+#     - adapter: iqm2
+#       category: county_government
+#       config:
+#         tenant: riversidecountyca
+
+bodies:
+  - name: "Board of Supervisors"
+    slug: "board-of-supervisors"
+    category: "county_government"
+    adapter: "manual"

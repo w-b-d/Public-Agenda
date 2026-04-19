@@ -1,0 +1,17 @@
+# Stanislaus County, California
+# Custom stancounty.com (IQM2 legacy stanislauscountyca exists)
+
+jurisdiction:
+  name: "Stanislaus County"
+  slug: "stanislaus-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+# No vendor adapter available — body is nav-only for now.
+
+bodies:
+  - name: "Board of Supervisors"
+    slug: "board-of-supervisors"
+    category: "county_government"
+    adapter: "manual"

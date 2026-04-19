@@ -1,0 +1,170 @@
+# Monterey County, California
+#
+# `sources` auto-enumerates every active body on a tenant. The `name_prefix`
+# disambiguates so e.g. "City Council" from salinas tenant becomes
+# "City of Salinas - City Council".
+#
+# `bodies` lists explicit entries for platforms we don't have adapters for
+# (Granicus ViewPublisher, BoardDocs, OnBase, custom HTML, Municode).
+# Their meeting data is in supabase/seeds/manual_meetings.sql or absent.
+
+jurisdiction:
+  name: "Monterey County"
+  slug: "monterey-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # County government — every active body on the monterey Legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: monterey
+
+  # City of Salinas — every active body on the salinas Legistar tenant.
+  - adapter: legistar
+    category: municipal_government
+    name_prefix: "City of Salinas - "
+    config:
+      tenant: salinas
+
+  # City of Carmel-by-the-Sea — CivicClerk.
+  - adapter: civicclerk
+    category: municipal_government
+    name_prefix: "City of Carmel-by-the-Sea - "
+    config:
+      tenant: carmelbytheseaca
+
+  # City of Seaside — CivicClerk.
+  - adapter: civicclerk
+    category: municipal_government
+    name_prefix: "City of Seaside - "
+    config:
+      tenant: seasideca
+
+  # Monterey One Water (regional wastewater) — CivicClerk.
+  - adapter: civicclerk
+    category: special_district
+    name_prefix: "Monterey One Water - "
+    config:
+      tenant: montereyonewater
+
+bodies:
+  # ---- Municipal: cities on platforms we don't yet have adapters for ----
+  - name: "City of Monterey - City Council"
+    slug: "monterey-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Pacific Grove - City Council"
+    slug: "pacific-grove-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Marina - City Council"
+    slug: "marina-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Soledad - City Council"
+    slug: "soledad-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Greenfield - City Council"
+    slug: "greenfield-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of King City - City Council"
+    slug: "king-city-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Gonzales - City Council"
+    slug: "gonzales-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Sand City - City Council"
+    slug: "sand-city-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  - name: "City of Del Rey Oaks - City Council"
+    slug: "del-rey-oaks-city-council"
+    category: "municipal_government"
+    adapter: "manual"
+
+  # ---- Special districts ----
+  - name: "Monterey Peninsula Water Management District"
+    slug: "mpwmd-board"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Monterey Bay Air Resources District"
+    slug: "mbard-board"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Marina Coast Water District"
+    slug: "marina-coast-water-district"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Salinas Valley Basin Groundwater Sustainability Agency"
+    slug: "svbgsa"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Monterey-Salinas Transit"
+    slug: "mst"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Transportation Agency for Monterey County"
+    slug: "tamc"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Monterey County Regional Fire District"
+    slug: "monterey-county-regional-fire"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Salinas Valley Memorial Healthcare District"
+    slug: "salinas-valley-health"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Monterey Peninsula Airport District"
+    slug: "monterey-peninsula-airport"
+    category: "special_district"
+    adapter: "manual"
+
+  # School districts (BoardDocs — no adapter yet).
+  - name: "Monterey Peninsula Unified School District - Board of Education"
+    slug: "mpusd-board"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Salinas Union High School District - Board of Trustees"
+    slug: "salinas-union-hsd-board"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Salinas City Elementary School District - Board"
+    slug: "salinas-city-esd-board"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Alisal Union School District - Board"
+    slug: "alisal-union-board"
+    category: "special_district"
+    adapter: "manual"
+
+  - name: "Monterey Peninsula College - Board of Trustees"
+    slug: "mpc-board"
+    category: "special_district"
+    adapter: "manual"

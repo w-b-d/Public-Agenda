@@ -1,0 +1,16 @@
+# Tuolumne County, California
+# Also has CivicEngage AgendaCenter
+
+jurisdiction:
+  name: "Tuolumne County"
+  slug: "tuolumne-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the tuolumnecoca civicclerk tenant.
+  - adapter: civicclerk
+    category: county_government
+    config:
+      tenant: tuolumnecoca

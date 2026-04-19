@@ -1,0 +1,15 @@
+# Kings County, California
+
+jurisdiction:
+  name: "Kings County"
+  slug: "kings-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the kingscoca civicclerk tenant.
+  - adapter: civicclerk
+    category: county_government
+    config:
+      tenant: kingscoca

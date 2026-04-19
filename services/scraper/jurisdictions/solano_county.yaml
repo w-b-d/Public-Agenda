@@ -1,0 +1,15 @@
+# Solano County, California
+
+jurisdiction:
+  name: "Solano County"
+  slug: "solano-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the solano legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: solano

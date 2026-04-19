@@ -1,0 +1,16 @@
+# Santa Clara County, California
+# BoS publishes via Granicus IQM2 (no adapter yet → manual).
+# This file will expand when the 58-county discovery agent finishes.
+
+jurisdiction:
+  name: "Santa Clara County"
+  slug: "santa-clara-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+bodies:
+  - name: "Santa Clara County - Board of Supervisors"
+    slug: "santa-clara-county-bos"
+    category: "county_government"
+    adapter: "manual"

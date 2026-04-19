@@ -1,0 +1,15 @@
+# Nevada County, California
+
+jurisdiction:
+  name: "Nevada County"
+  slug: "nevada-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the nevco legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: nevco

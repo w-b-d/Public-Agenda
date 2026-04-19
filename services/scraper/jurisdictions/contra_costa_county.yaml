@@ -1,0 +1,15 @@
+# Contra Costa County, California
+
+jurisdiction:
+  name: "Contra Costa County"
+  slug: "contra-costa-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+sources:
+  # Auto-enumerate every active body on the contra-costa legistar tenant.
+  - adapter: legistar
+    category: county_government
+    config:
+      tenant: contra-costa
