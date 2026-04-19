@@ -13,14 +13,21 @@ We then write both URLs back:
   video_url       = the Granicus player page URL (for in-app WebView embed)
   video_file_url  = the direct MP4 URL (for downstream transcription tools)
 
-Also clears out the single bogus placeholder URL that the previous version
-of this script mistakenly pasted onto 150+ rows — the Legistar page source
-contains a sample `sanfrancisco.granicus.com/.../event_id=0d47d9ee-...`
-reference which the old regex matched instead of the real per-meeting URL.
+Default behavior is additive: only scans Legistar meetings whose video_url
+is still NULL. Existing populated rows are left untouched.
+
+Pass --repair to ALSO clear two known-bad historical patterns before
+re-resolving:
+  1. The SF-placeholder event_id that earlier versions of this script
+     mistakenly pasted onto 150+ rows.
+  2. Legistar rows whose video_file_url was populated by the pre-fix
+     version of this script (all pointed at the same Monterey BoS clip).
+Do NOT pass --repair on a healthy database — it destroys valid data.
 
 Usage (from services/scraper/):
-    python -m scraper.resolve_videos                  # process all Legistar
+    python -m scraper.resolve_videos                  # additive; touches only NULL rows
     python -m scraper.resolve_videos --limit 20       # sample run
+    python -m scraper.resolve_videos --repair         # one-time cleanup + re-resolve
 """
 from __future__ import annotations
 
@@ -76,6 +83,16 @@ def tenant_from_url(url: str) -> Optional[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=5000)
+    parser.add_argument(
+        "--repair",
+        action="store_true",
+        help=(
+            "Run one-time cleanup of bogus video_url values inserted by "
+            "prior buggy versions of this script. NEVER pass this on a "
+            "healthy database — it wipes correctly-populated video_url "
+            "and video_file_url values and forces re-resolution."
+        ),
+    )
     args = parser.parse_args()
 
     load_dotenv()
@@ -89,42 +106,49 @@ def main() -> int:
         return 1
     sb = create_client(url, key)
 
-    # -- 1. Clear bogus rows from earlier buggy extractor runs ----------------
-    # 1a. The very first buggy run inserted the SF placeholder everywhere.
-    bogus_rows = (
-        sb.table("meetings")
-        .select("id")
-        .like("video_url", f"%{BOGUS_URL_MARKER}%")
-        .execute()
-        .data
-        or []
-    )
-    if bogus_rows:
-        sb.table("meetings").update({"video_url": None}).like(
-            "video_url", f"%{BOGUS_URL_MARKER}%"
-        ).execute()
-        print(f"Cleared {len(bogus_rows)} SF-placeholder video_urls from first buggy run.")
-
-    # 1b. The second buggy run (prior version of THIS script) matched the
-    # Legistar-wide template clip_id for every meeting — all 156 video_file_urls
-    # ended up identical. Any row with video_file_url set was written by this
-    # script and needs to be re-resolved with the correct regex.
-    bad_rows = (
-        sb.table("meetings")
-        .select("id")
-        .not_.is_("video_file_url", "null")
-        .execute()
-        .data
-        or []
-    )
-    if bad_rows:
-        sb.table("meetings").update(
-            {"video_url": None, "video_file_url": None}
-        ).not_.is_("video_file_url", "null").execute()
-        print(
-            f"Cleared {len(bad_rows)} rows with template-matched video URLs "
-            f"from the second buggy run."
+    if args.repair:
+        # -- 1. Clear bogus rows from earlier buggy extractor runs ------------
+        # 1a. The very first buggy run inserted the SF placeholder everywhere.
+        bogus_rows = (
+            sb.table("meetings")
+            .select("id")
+            .like("video_url", f"%{BOGUS_URL_MARKER}%")
+            .execute()
+            .data
+            or []
         )
+        if bogus_rows:
+            sb.table("meetings").update({"video_url": None}).like(
+                "video_url", f"%{BOGUS_URL_MARKER}%"
+            ).execute()
+            print(
+                f"Cleared {len(bogus_rows)} SF-placeholder video_urls from first buggy run."
+            )
+
+        # 1b. The second buggy run (prior version of THIS script) matched the
+        # Legistar-wide template clip_id for every meeting — all 156
+        # video_file_urls ended up identical. Scoped to source='legistar'
+        # so non-Legistar (PrimeGov, CivicClerk) rows written by OTHER
+        # adapters don't get clobbered.
+        bad_rows = (
+            sb.table("meetings")
+            .select("id")
+            .eq("source", "legistar")
+            .not_.is_("video_file_url", "null")
+            .execute()
+            .data
+            or []
+        )
+        if bad_rows:
+            sb.table("meetings").update(
+                {"video_url": None, "video_file_url": None}
+            ).eq("source", "legistar").not_.is_(
+                "video_file_url", "null"
+            ).execute()
+            print(
+                f"Cleared {len(bad_rows)} Legistar rows with template-matched "
+                f"video URLs from the second buggy run."
+            )
 
     # -- 2. Find Legistar meetings still needing resolution -------------------
     rows = (

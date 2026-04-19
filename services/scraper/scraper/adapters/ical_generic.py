@@ -5,18 +5,26 @@ Granicus IQM2 (Export to iCal), CivicPlus AgendaCenter, BoardDocs,
 CivicClerk, plain Google/Apple calendars, etc.
 
 Config:
-    url -- the .ics feed URL
+    url       -- the .ics feed URL
+    timezone  -- (optional) IANA zone name, used for naive DTSTART values.
+                 Per RFC 5545, iCal datetimes without a timezone are
+                 "floating" (interpreted in the viewer's local time), NOT
+                 UTC. Defaults to America/Los_Angeles since our initial
+                 coverage is California.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Iterable
+from zoneinfo import ZoneInfo
 
 import requests
 from icalendar import Calendar
 
 from scraper.adapters.base import MeetingAdapter
 from scraper.normalize import extract_join_url
+
+_DEFAULT_TZ = "America/Los_Angeles"
 
 
 class ICalAdapter(MeetingAdapter):
@@ -25,6 +33,7 @@ class ICalAdapter(MeetingAdapter):
     def __init__(self, config: dict):
         super().__init__(config)
         self.url: str = config["url"]
+        self.local_tz = ZoneInfo(config.get("timezone", _DEFAULT_TZ))
 
     def list_events(self, start: datetime, end: datetime) -> Iterable[dict]:
         resp = requests.get(self.url, timeout=30)
@@ -40,7 +49,9 @@ class ICalAdapter(MeetingAdapter):
             if not isinstance(dtstart, datetime):
                 continue
             if dtstart.tzinfo is None:
-                dtstart = dtstart.replace(tzinfo=timezone.utc)
+                # RFC 5545 floating datetimes: interpret as local time of
+                # the publisher (NOT UTC).
+                dtstart = dtstart.replace(tzinfo=self.local_tz)
             if not (start <= dtstart <= end):
                 continue
 
@@ -62,5 +73,6 @@ class ICalAdapter(MeetingAdapter):
                 "location": location,
                 "agenda_url": url,
                 "video_url": None,
+                "video_file_url": None,
                 "join_url": extract_join_url(description),
             }

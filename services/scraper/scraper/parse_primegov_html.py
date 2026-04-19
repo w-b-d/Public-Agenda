@@ -30,26 +30,9 @@ from typing import Optional
 from dotenv import load_dotenv
 from supabase import create_client
 
-TITLE_SUFFIXES = (
-    " - Regular Meeting",
-    " - Special Meeting",
-    " - Budget Meeting",
-    " - Organizational Meeting",
-    " - Continued Budget Meeting",
-    " - Last Day Budget Meeting",
-    " Regular Meeting",
-    " Special Meeting",
-)
-
-
-def body_name_from_title(title: str) -> str:
-    t = (title or "").strip()
-    for suf in TITLE_SUFFIXES:
-        if t.endswith(suf):
-            return t[: -len(suf)].strip()
-    if " - " in t:
-        return t.split(" - ", 1)[0].strip()
-    return t
+# Reuse the canonical title-normalization from the PrimeGov adapter so this
+# fallback tool can't drift from the adapter's behavior.
+from scraper.adapters.primegov import _body_name_from_title as body_name_from_title
 
 
 def extract_rows(html: str) -> list[dict]:

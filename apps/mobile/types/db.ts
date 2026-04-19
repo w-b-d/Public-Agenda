@@ -36,6 +36,7 @@ export interface Meeting {
   video_file_url: string | null;
   join_url: string | null;
   ai_summary: string | null;
+  transcript: string | null;
   source: string;
   external_id: string;
   created_at: string;

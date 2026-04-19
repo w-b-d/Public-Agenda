@@ -178,9 +178,13 @@ export default function MeetingDetailScreen() {
           title="Transcript"
           icon={<FileText size={18} color="#0b2a6f" />}
         >
-          <ThemedText style={styles.placeholderText}>
-            Transcript with timestamps will appear here once generated.
-          </ThemedText>
+          {meeting.transcript ? (
+            <ThemedText style={styles.bodyText}>{meeting.transcript}</ThemedText>
+          ) : (
+            <ThemedText style={styles.placeholderText}>
+              Transcript will appear here once generated.
+            </ThemedText>
+          )}
         </Section>
 
         {!isUpcoming ? (

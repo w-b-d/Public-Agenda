@@ -204,14 +204,20 @@ def upsert_jurisdiction(supabase: Client, yaml_dict: dict) -> str:
             supabase, yaml_dict["parent_state"], yaml_dict["state"]
         )
 
-    existing = (
+    # Include parent_id in the lookup — otherwise two jurisdictions with
+    # the same (type, name) but different parents (e.g. "Orange County"
+    # in CA vs TX) would collide.
+    query = (
         supabase.table("jurisdictions")
         .select("id")
         .eq("type", yaml_dict["type"])
         .eq("name", yaml_dict["name"])
-        .limit(1)
-        .execute()
     )
+    if parent_id is None:
+        query = query.is_("parent_id", "null")
+    else:
+        query = query.eq("parent_id", parent_id)
+    existing = query.limit(1).execute()
     if existing.data:
         return existing.data[0]["id"]
 
