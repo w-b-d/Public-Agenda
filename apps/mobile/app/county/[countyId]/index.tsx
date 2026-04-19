@@ -17,6 +17,7 @@ import {
   Clock3,
   MapPin,
   Search,
+  Star,
   User as UserIcon,
   Video,
   X,
@@ -37,6 +38,7 @@ import {
   listRolesForPeople,
   type PersonRoleSpan,
 } from '@/lib/queries/people';
+import { useSubscriptions } from '@/hooks/use-subscriptions';
 import type { Body, Jurisdiction, Meeting, PersonWithRole } from '@/types/db';
 
 type MeetingWithBody = Meeting & {
@@ -138,6 +140,16 @@ export default function CountyDashboard() {
   const [members, setMembers] = useState<PersonWithRole[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersVisible, setMembersVisible] = useState(20);
+
+  const subs = useSubscriptions();
+
+  const handleToggleStar = async (meetingId: string) => {
+    if (!subs.isSignedIn) {
+      router.push('/sign-in');
+      return;
+    }
+    await subs.toggle(meetingId);
+  };
 
   // Person-level filter: when non-empty, the Chronicle further narrows to
   // meetings of bodies these people have or had a role on AND whose
@@ -801,6 +813,8 @@ export default function CountyDashboard() {
                 onPress={goToMeeting}
                 hasMore={hasMoreUpcoming}
                 onLoadMore={() => setUpcomingPage((p) => p + 1)}
+                subscribedIds={subs.meetingIds}
+                onToggleStar={handleToggleStar}
               />
 
               <MeetingSection
@@ -809,6 +823,8 @@ export default function CountyDashboard() {
                 onPress={goToMeeting}
                 hasMore={hasMorePast}
                 onLoadMore={() => setPastPage((p) => p + 1)}
+                subscribedIds={subs.meetingIds}
+                onToggleStar={handleToggleStar}
               />
 
               {filteredMeetings.length === 0 ? (
@@ -981,12 +997,16 @@ function MeetingSection({
   onPress,
   hasMore = false,
   onLoadMore,
+  subscribedIds,
+  onToggleStar,
 }: {
   title: string;
   meetings: MeetingWithBody[];
   onPress: (meeting: MeetingWithBody) => void;
   hasMore?: boolean;
   onLoadMore?: () => void;
+  subscribedIds?: Set<string>;
+  onToggleStar?: (meetingId: string) => void;
 }) {
   if (meetings.length === 0) return null;
 
@@ -995,7 +1015,9 @@ function MeetingSection({
       <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
 
       <View style={styles.sectionList}>
-        {meetings.map((meeting) => (
+        {meetings.map((meeting) => {
+          const starred = subscribedIds?.has(meeting.id) ?? false;
+          return (
           <Pressable
             key={meeting.id}
             style={styles.eventCard}
@@ -1011,11 +1033,29 @@ function MeetingSection({
             </View>
 
             <View style={styles.eventMain}>
-              <View style={styles.eventMetaRow}>
-                <View style={styles.dot} />
-                <ThemedText style={styles.eventCategory}>
-                  {(meeting.body?.category ?? 'public meeting').toUpperCase()}
-                </ThemedText>
+              <View style={styles.eventTopRow}>
+                <View style={styles.eventMetaRow}>
+                  <View style={styles.dot} />
+                  <ThemedText style={styles.eventCategory}>
+                    {(meeting.body?.category ?? 'public meeting').toUpperCase()}
+                  </ThemedText>
+                </View>
+                {onToggleStar ? (
+                  <Pressable
+                    hitSlop={10}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      onToggleStar(meeting.id);
+                    }}
+                    style={styles.starButton}
+                  >
+                    <Star
+                      size={20}
+                      color={starred ? '#f59e0b' : '#9ca3af'}
+                      fill={starred ? '#f59e0b' : 'transparent'}
+                    />
+                  </Pressable>
+                ) : null}
               </View>
 
               <ThemedText style={styles.eventTitle}>
@@ -1064,7 +1104,8 @@ function MeetingSection({
               </View>
             </View>
           </Pressable>
-        ))}
+          );
+        })}
 
         {hasMore && onLoadMore ? (
           <Pressable style={styles.loadMoreButton} onPress={onLoadMore}>
@@ -1441,6 +1482,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 6,
+    flex: 1,
+  },
+
+  eventTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+
+  starButton: {
+    padding: 4,
+    marginTop: -2,
   },
 
   dot: {

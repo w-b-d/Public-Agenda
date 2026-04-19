@@ -1,11 +1,26 @@
+import { useUser } from '@clerk/clerk-expo';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
-import { Bell, Landmark, ChevronDown } from 'lucide-react-native';
+import { Bell, Landmark, ChevronDown, LogIn } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { listBranchesForCounty } from '@/lib/queries';
 import { BRANCHES } from '@/constants/branches';
+
+function initialsFromUser(user: {
+  firstName?: string | null;
+  lastName?: string | null;
+  emailAddresses?: Array<{ emailAddress?: string }>;
+} | null | undefined): string {
+  if (!user) return '';
+  const first = user.firstName?.[0] ?? '';
+  const last = user.lastName?.[0] ?? '';
+  const combined = (first + last).toUpperCase();
+  if (combined) return combined;
+  const email = user.emailAddresses?.[0]?.emailAddress ?? '';
+  return email.slice(0, 2).toUpperCase() || 'YO';
+}
 
 type HeaderProps = {
     activeItem?: 'Archive' | 'Calendar' | 'Select' | 'Registry';
@@ -27,13 +42,16 @@ const NAV_ITEMS: Array<HeaderProps['activeItem']> = [
 
 export default function Header({
     activeItem = 'Calendar',
-    initials = 'JD',
+    initials,
     countyId,
 }: HeaderProps) {
     const router = useRouter();
+    const { user, isSignedIn } = useUser();
 
     const [menuOpen, setMenuOpen] = useState(false);
     const [branchSlugs, setBranchSlugs] = useState<string[]>([]);
+
+    const resolvedInitials = initials ?? initialsFromUser(user);
 
     useEffect(() => {
         if (!countyId) {
@@ -74,9 +92,26 @@ export default function Header({
                                 <Bell size={18} color="#6b7280" />
                             </Pressable>
 
-                            <View style={styles.avatar}>
-                                <ThemedText style={styles.avatarText}>{initials}</ThemedText>
-                            </View>
+                            {isSignedIn ? (
+                                <Pressable
+                                    style={styles.avatar}
+                                    onPress={() => router.push('/my-subscriptions')}
+                                >
+                                    <ThemedText style={styles.avatarText}>
+                                        {resolvedInitials}
+                                    </ThemedText>
+                                </Pressable>
+                            ) : (
+                                <Pressable
+                                    style={styles.signInButton}
+                                    onPress={() => router.push('/sign-in')}
+                                >
+                                    <LogIn size={14} color="#ffffff" />
+                                    <ThemedText style={styles.signInText}>
+                                        Sign in
+                                    </ThemedText>
+                                </Pressable>
+                            )}
                         </View>
                     </View>
 
@@ -228,6 +263,22 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         fontSize: 11,
         letterSpacing: 0.4,
+    },
+
+    signInButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#0b2a6f',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 16,
+    },
+
+    signInText: {
+        color: '#ffffff',
+        fontWeight: '800',
+        fontSize: 12,
     },
 
     nav: {
