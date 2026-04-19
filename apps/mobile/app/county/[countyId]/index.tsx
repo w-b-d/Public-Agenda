@@ -36,6 +36,7 @@ type MeetingWithBody = Meeting & {
     category?: string;
     jurisdiction_id?: string;
   };
+  body_id?: string;
 };
 
 type Suggestion = {
@@ -45,6 +46,10 @@ type Suggestion = {
 };
 
 const PAGE_SIZE = 10;
+
+function getMeetingBodyId(meeting: MeetingWithBody) {
+  return meeting.body?.id ?? meeting.body_id ?? '';
+}
 
 export default function CountyDashboard() {
   const { countyId } = useLocalSearchParams<{ countyId: string }>();
@@ -74,9 +79,13 @@ export default function CountyDashboard() {
       listMeetingsForCounty(countyId),
     ])
       .then(([countyData, bodiesData, meetingsData]) => {
+        const safeBodies = (bodiesData ?? []) as Body[];
+        const safeMeetings = (meetingsData as MeetingWithBody[]) ?? [];
+
         setCounty(countyData);
-        setBodies(bodiesData ?? []);
-        setMeetings((meetingsData as MeetingWithBody[]) ?? []);
+        setBodies(safeBodies);
+        setMeetings(safeMeetings);
+        setSelectedBodies(safeBodies.map((body) => body.id));
       })
       .finally(() => setLoading(false));
   }, [countyId]);
@@ -232,10 +241,12 @@ export default function CountyDashboard() {
     }
 
     if (selectedBodies.length > 0) {
-      result = result.filter(
-        (meeting) =>
-          !!meeting.body?.id && selectedBodies.includes(meeting.body.id)
-      );
+      result = result.filter((meeting) => {
+        const meetingBodyId = getMeetingBodyId(meeting);
+        return !!meetingBodyId && selectedBodies.includes(meetingBodyId);
+      });
+    } else {
+      result = [];
     }
 
     if (selectedDate) {
@@ -275,8 +286,11 @@ export default function CountyDashboard() {
 
       const matchesBodies =
         selectedBodies.length > 0
-          ? !!meeting.body?.id && selectedBodies.includes(meeting.body.id)
-          : true;
+          ? (() => {
+              const meetingBodyId = getMeetingBodyId(meeting);
+              return !!meetingBodyId && selectedBodies.includes(meetingBodyId);
+            })()
+          : false;
 
       return matchesSearch && matchesBodies;
     });
@@ -328,12 +342,13 @@ export default function CountyDashboard() {
   const hasMorePast = visiblePastMeetings.length < pastMeetings.length;
 
   const goToMeeting = (meeting: MeetingWithBody) => {
-    if (!meeting.body?.id || !meeting.id || !countyId) return;
-    const branch = meeting.body.category;
+    const meetingBodyId = getMeetingBodyId(meeting);
+    if (!meetingBodyId || !meeting.id || !countyId) return;
+    const branch = meeting.body?.category;
     if (!branch) return;
 
     router.push(
-      `/county/${countyId}/${branch}/${meeting.body.id}/meeting/${meeting.id}`
+      `/county/${countyId}/${branch}/${meetingBodyId}/meeting/${meeting.id}`
     );
   };
 
@@ -458,40 +473,50 @@ export default function CountyDashboard() {
             {showAdvancedFilter ? (
               <View style={styles.advancedCard}>
                 <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.advancedColumns}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={styles.advancedVerticalContent}
                 >
-                  {Object.entries(groupedBodies).map(([branch, branchBodies]) => (
-                    <View key={branch} style={styles.advancedColumn}>
-                      <Pressable
-                        style={styles.branchRow}
-                        onPress={() => toggleBranch(branch)}
-                      >
-                        <Checkbox checked={isBranchSelected(branch)} />
-                        <ThemedText style={styles.branchTitle}>
-                          {branch.toUpperCase()}
-                        </ThemedText>
-                      </Pressable>
-
-                      <View style={styles.branchBodiesList}>
-                        {branchBodies.map((body) => (
+                  <ScrollView
+                    horizontal
+                    nestedScrollEnabled
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.advancedColumns}
+                  >
+                    {Object.entries(groupedBodies).map(
+                      ([branch, branchBodies]) => (
+                        <View key={branch} style={styles.advancedColumn}>
                           <Pressable
-                            key={body.id}
-                            style={styles.bodyRow}
-                            onPress={() => toggleBody(body.id)}
+                            style={styles.branchRow}
+                            onPress={() => toggleBranch(branch)}
                           >
-                            <Checkbox
-                              checked={selectedBodies.includes(body.id)}
-                            />
-                            <ThemedText style={styles.bodyRowText}>
-                              {body.name}
+                            <Checkbox checked={isBranchSelected(branch)} />
+                            <ThemedText style={styles.branchTitle}>
+                              {branch.toUpperCase()}
                             </ThemedText>
                           </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                  ))}
+
+                          <View style={styles.branchBodiesList}>
+                            {branchBodies.map((body) => (
+                              <Pressable
+                                key={body.id}
+                                style={styles.bodyRow}
+                                onPress={() => toggleBody(body.id)}
+                              >
+                                <Checkbox
+                                  checked={selectedBodies.includes(body.id)}
+                                />
+                                <ThemedText style={styles.bodyRowText}>
+                                  {body.name}
+                                </ThemedText>
+                              </Pressable>
+                            ))}
+                          </View>
+                        </View>
+                      )
+                    )}
+                  </ScrollView>
                 </ScrollView>
               </View>
             ) : null}
@@ -855,6 +880,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#7c8798',
     textTransform: 'uppercase',
+  },
+
+  advancedVerticalContent: {
+    paddingVertical: 12,
   },
 
   advancedCard: {
