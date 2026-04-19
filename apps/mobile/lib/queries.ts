@@ -66,6 +66,26 @@ export async function listMeetingsForBody(bodyId: string): Promise<Meeting[]> {
   return data ?? [];
 }
 
+export async function listBranchesForCounty(countyId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('bodies')
+    .select('category')
+    .eq('jurisdiction_id', countyId)
+    .order('category');
+
+  if (error) throw error;
+
+  const unique = Array.from(
+    new Set(
+      (data ?? [])
+        .map((row: any) => row?.category)
+        .filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
+    )
+  );
+
+  return unique;
+}
+
 /**
  * All bodies in a county, regardless of branch/category.
  */

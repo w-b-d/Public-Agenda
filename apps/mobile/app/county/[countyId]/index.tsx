@@ -22,7 +22,11 @@ import Footer from '@/components/Footer';
 import BottomNav from '@/components/BottomNav';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { getJurisdiction, listBodiesForCounty, listMeetingsForCounty } from '@/lib/queries';
+import {
+  getJurisdiction,
+  listBodiesForCounty,
+  listMeetingsForCounty,
+} from '@/lib/queries';
 import type { Body, Jurisdiction, Meeting } from '@/types/db';
 
 type MeetingWithBody = Meeting & {
@@ -40,6 +44,8 @@ type Suggestion = {
   value: string;
 };
 
+const PAGE_SIZE = 10;
+
 export default function CountyDashboard() {
   const { countyId } = useLocalSearchParams<{ countyId: string }>();
   const router = useRouter();
@@ -52,9 +58,9 @@ export default function CountyDashboard() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showAdvancedFilter, setShowAdvancedFilter] = useState(false);
+  const [selectedBodies, setSelectedBodies] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('Calendar');
-
-  const PAGE_SIZE = 10;
 
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [pastPage, setPastPage] = useState(1);
@@ -80,7 +86,27 @@ export default function CountyDashboard() {
   useEffect(() => {
     setUpcomingPage(1);
     setPastPage(1);
-  }, [selectedDate, normalizedSearch]);
+  }, [selectedDate, normalizedSearch, selectedBodies]);
+
+  const groupedBodies = useMemo(() => {
+    const groups: Record<string, Body[]> = {};
+
+    for (const body of bodies) {
+      const key =
+        typeof body.category === 'string' && body.category.length > 0
+          ? body.category
+          : 'other';
+
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(body);
+    }
+
+    for (const key of Object.keys(groups)) {
+      groups[key].sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return groups;
+  }, [bodies]);
 
   const suggestions = useMemo(() => {
     if (!normalizedSearch) return [];
@@ -117,7 +143,8 @@ export default function CountyDashboard() {
 
     for (const body of bodies) {
       const bodyName = body.name?.trim();
-      const branch = typeof body.category === 'string' ? body.category.trim() : '';
+      const branch =
+        typeof body.category === 'string' ? body.category.trim() : '';
 
       if (bodyName) {
         const key = bodyName.toLowerCase();
@@ -147,13 +174,45 @@ export default function CountyDashboard() {
     return all
       .filter((item) => item.label.toLowerCase().includes(normalizedSearch))
       .sort((a, b) => {
-        const aStarts = a.label.toLowerCase().startsWith(normalizedSearch) ? 0 : 1;
-        const bStarts = b.label.toLowerCase().startsWith(normalizedSearch) ? 0 : 1;
+        const aStarts = a.label.toLowerCase().startsWith(normalizedSearch)
+          ? 0
+          : 1;
+        const bStarts = b.label.toLowerCase().startsWith(normalizedSearch)
+          ? 0
+          : 1;
         if (aStarts !== bStarts) return aStarts - bStarts;
         return a.label.localeCompare(b.label);
       })
       .slice(0, 8);
   }, [normalizedSearch, meetings, bodies]);
+
+  const toggleBody = (bodyId: string) => {
+    setSelectedBodies((prev) =>
+      prev.includes(bodyId)
+        ? prev.filter((id) => id !== bodyId)
+        : [...prev, bodyId]
+    );
+  };
+
+  const toggleBranch = (branch: string) => {
+    const branchBodies = (groupedBodies[branch] ?? []).map((b) => b.id);
+    const allSelected =
+      branchBodies.length > 0 &&
+      branchBodies.every((id) => selectedBodies.includes(id));
+
+    setSelectedBodies((prev) => {
+      if (allSelected) {
+        return prev.filter((id) => !branchBodies.includes(id));
+      }
+      return Array.from(new Set([...prev, ...branchBodies]));
+    });
+  };
+
+  const isBranchSelected = (branch: string) => {
+    const branchBodies = (groupedBodies[branch] ?? []).map((b) => b.id);
+    if (branchBodies.length === 0) return false;
+    return branchBodies.every((id) => selectedBodies.includes(id));
+  };
 
   const filteredMeetings = useMemo(() => {
     let result = meetings;
@@ -172,12 +231,21 @@ export default function CountyDashboard() {
       });
     }
 
+    if (selectedBodies.length > 0) {
+      result = result.filter(
+        (meeting) =>
+          !!meeting.body?.id && selectedBodies.includes(meeting.body.id)
+      );
+    }
+
     if (selectedDate) {
-      result = result.filter((m) => m.start_time.slice(0, 10) === selectedDate);
+      result = result.filter(
+        (meeting) => meeting.start_time.slice(0, 10) === selectedDate
+      );
     }
 
     return result;
-  }, [meetings, normalizedSearch, selectedDate]);
+  }, [meetings, normalizedSearch, selectedBodies, selectedDate]);
 
   const markedDates = useMemo(() => {
     const marks: Record<
@@ -190,19 +258,28 @@ export default function CountyDashboard() {
       }
     > = {};
 
-    const calendarMeetings = normalizedSearch
-      ? meetings.filter((meeting) => {
-        const bodyName = meeting.body?.name?.toLowerCase() ?? '';
-        const branchName = meeting.body?.category?.toLowerCase() ?? '';
-        const title = meeting.title?.toLowerCase() ?? '';
+    const calendarMeetings = meetings.filter((meeting) => {
+      const matchesSearch = normalizedSearch
+        ? (() => {
+            const bodyName = meeting.body?.name?.toLowerCase() ?? '';
+            const branchName = meeting.body?.category?.toLowerCase() ?? '';
+            const title = meeting.title?.toLowerCase() ?? '';
 
-        return (
-          bodyName.includes(normalizedSearch) ||
-          branchName.includes(normalizedSearch) ||
-          title.includes(normalizedSearch)
-        );
-      })
-      : meetings;
+            return (
+              bodyName.includes(normalizedSearch) ||
+              branchName.includes(normalizedSearch) ||
+              title.includes(normalizedSearch)
+            );
+          })()
+        : true;
+
+      const matchesBodies =
+        selectedBodies.length > 0
+          ? !!meeting.body?.id && selectedBodies.includes(meeting.body.id)
+          : true;
+
+      return matchesSearch && matchesBodies;
+    });
 
     for (const meeting of calendarMeetings) {
       const key = meeting.start_time.slice(0, 10);
@@ -222,27 +299,19 @@ export default function CountyDashboard() {
     }
 
     return marks;
-  }, [meetings, normalizedSearch, selectedDate]);
+  }, [meetings, normalizedSearch, selectedBodies, selectedDate]);
 
   const nowIso = new Date().toISOString();
 
   const upcomingMeetings = useMemo(
-    () => filteredMeetings.filter((m) => m.start_time >= nowIso),
+    () => filteredMeetings.filter((meeting) => meeting.start_time >= nowIso),
     [filteredMeetings, nowIso]
   );
 
   const pastMeetings = useMemo(
-    () => filteredMeetings.filter((m) => m.start_time < nowIso),
+    () => filteredMeetings.filter((meeting) => meeting.start_time < nowIso),
     [filteredMeetings, nowIso]
   );
-
-  const goToMeeting = (meeting: MeetingWithBody) => {
-    if (!meeting.body?.id || !meeting.id) return;
-    const branch = meeting.body.category;
-    if (!branch) return;
-
-    router.push(`/county/${countyId}/${branch}/${meeting.body.id}/meeting/${meeting.id}`);
-  };
 
   const visibleUpcomingMeetings = useMemo(
     () => upcomingMeetings.slice(0, upcomingPage * PAGE_SIZE),
@@ -254,8 +323,19 @@ export default function CountyDashboard() {
     [pastMeetings, pastPage]
   );
 
-  const hasMoreUpcoming = visibleUpcomingMeetings.length < upcomingMeetings.length;
+  const hasMoreUpcoming =
+    visibleUpcomingMeetings.length < upcomingMeetings.length;
   const hasMorePast = visiblePastMeetings.length < pastMeetings.length;
+
+  const goToMeeting = (meeting: MeetingWithBody) => {
+    if (!meeting.body?.id || !meeting.id || !countyId) return;
+    const branch = meeting.body.category;
+    if (!branch) return;
+
+    router.push(
+      `/county/${countyId}/${branch}/${meeting.body.id}/meeting/${meeting.id}`
+    );
+  };
 
   return (
     <ThemedView style={styles.screen}>
@@ -271,7 +351,7 @@ export default function CountyDashboard() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Header activeItem="Calendar" />
+          <Header activeItem="Calendar" countyId={countyId} />
 
           <View style={styles.hero}>
             <ThemedText style={styles.eyebrow}>COUNTY OVERVIEW</ThemedText>
@@ -279,7 +359,8 @@ export default function CountyDashboard() {
               {county?.name ?? 'County'}
             </ThemedText>
             <ThemedText style={styles.subtitle}>
-              Browse every tracked meeting in this county, then filter by branch or body.
+              Browse every tracked meeting in this county, then filter by branch
+              or body.
             </ThemedText>
           </View>
 
@@ -292,8 +373,12 @@ export default function CountyDashboard() {
                   onChangeText={(text) => {
                     setSearchText(text);
                     setShowSuggestions(true);
+                    setShowAdvancedFilter(false);
                   }}
-                  onFocus={() => setShowSuggestions(true)}
+                  onFocus={() => {
+                    setShowSuggestions(true);
+                    setShowAdvancedFilter(false);
+                  }}
                   placeholder="Search branch or body..."
                   placeholderTextColor="#98a2b3"
                   style={styles.searchInput}
@@ -316,7 +401,7 @@ export default function CountyDashboard() {
               <View style={styles.suggestionsCard}>
                 <ScrollView
                   nestedScrollEnabled
-                  showsVerticalScrollIndicator={true}
+                  showsVerticalScrollIndicator
                   keyboardShouldPersistTaps="handled"
                 >
                   {suggestions.map((item, index) => (
@@ -324,7 +409,8 @@ export default function CountyDashboard() {
                       key={`${item.type}-${item.value}-${index}`}
                       style={[
                         styles.suggestionRow,
-                        index !== suggestions.length - 1 && styles.suggestionRowBorder,
+                        index !== suggestions.length - 1 &&
+                          styles.suggestionRowBorder,
                       ]}
                       onPress={() => {
                         setSearchText(item.value);
@@ -343,6 +429,68 @@ export default function CountyDashboard() {
                         </View>
                       </View>
                     </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+
+            <View style={styles.advancedFilterWrap}>
+              <Pressable
+                onPress={() => {
+                  setShowAdvancedFilter((prev) => !prev);
+                  setShowSuggestions(false);
+                }}
+              >
+                <ThemedText style={styles.advancedFilterText}>
+                  Advanced Filter
+                </ThemedText>
+              </Pressable>
+
+              {selectedBodies.length > 0 ? (
+                <Pressable onPress={() => setSelectedBodies([])}>
+                  <ThemedText style={styles.clearAdvancedText}>
+                    Clear
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {showAdvancedFilter ? (
+              <View style={styles.advancedCard}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.advancedColumns}
+                >
+                  {Object.entries(groupedBodies).map(([branch, branchBodies]) => (
+                    <View key={branch} style={styles.advancedColumn}>
+                      <Pressable
+                        style={styles.branchRow}
+                        onPress={() => toggleBranch(branch)}
+                      >
+                        <Checkbox checked={isBranchSelected(branch)} />
+                        <ThemedText style={styles.branchTitle}>
+                          {branch.toUpperCase()}
+                        </ThemedText>
+                      </Pressable>
+
+                      <View style={styles.branchBodiesList}>
+                        {branchBodies.map((body) => (
+                          <Pressable
+                            key={body.id}
+                            style={styles.bodyRow}
+                            onPress={() => toggleBody(body.id)}
+                          >
+                            <Checkbox
+                              checked={selectedBodies.includes(body.id)}
+                            />
+                            <ThemedText style={styles.bodyRowText}>
+                              {body.name}
+                            </ThemedText>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
                   ))}
                 </ScrollView>
               </View>
@@ -376,7 +524,9 @@ export default function CountyDashboard() {
 
           <View style={styles.feedHeader}>
             <View>
-              <ThemedText style={styles.feedTitle}>Chronicle of Events</ThemedText>
+              <ThemedText style={styles.feedTitle}>
+                Chronicle of Events
+              </ThemedText>
               <ThemedText style={styles.feedSubtitle}>
                 {selectedDate
                   ? `Filtered by ${selectedDate}`
@@ -523,6 +673,14 @@ function MeetingSection({
   );
 }
 
+function Checkbox({ checked }: { checked: boolean }) {
+  return (
+    <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+      {checked ? <View style={styles.checkboxInner} /> : null}
+    </View>
+  );
+}
+
 function formatDateTime(iso: string) {
   const d = new Date(iso);
   return d.toLocaleString([], {
@@ -647,6 +805,8 @@ const styles = StyleSheet.create({
   suggestionRow: {
     paddingHorizontal: 14,
     paddingVertical: 12,
+    minHeight: 56,
+    justifyContent: 'center',
     backgroundColor: '#ffffff',
   },
 
@@ -671,6 +831,113 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7c8798',
     marginTop: 2,
+  },
+
+  advancedFilterWrap: {
+    marginTop: 10,
+    marginBottom: 12,
+    paddingHorizontal: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  advancedFilterText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0b2a6f',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+
+  clearAdvancedText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#7c8798',
+    textTransform: 'uppercase',
+  },
+
+  advancedCard: {
+    marginBottom: 18,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(120,130,150,0.10)',
+    maxHeight: 280,
+    overflow: 'hidden',
+  },
+
+  advancedColumns: {
+    padding: 12,
+    gap: 12,
+  },
+
+  advancedColumn: {
+    width: 220,
+    backgroundColor: '#fbfcfe',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(120,130,150,0.08)',
+  },
+
+  branchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingBottom: 10,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(120,130,150,0.08)',
+  },
+
+  branchTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#0b2a6f',
+    letterSpacing: 1,
+  },
+
+  branchBodiesList: {
+    gap: 10,
+  },
+
+  bodyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+
+  bodyRowText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#374151',
+    fontWeight: '600',
+  },
+
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#94a3b8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+    backgroundColor: '#ffffff',
+  },
+
+  checkboxChecked: {
+    borderColor: '#0b2a6f',
+    backgroundColor: '#e8eef9',
+  },
+
+  checkboxInner: {
+    width: 9,
+    height: 9,
+    borderRadius: 2,
+    backgroundColor: '#0b2a6f',
   },
 
   calendarCard: {
@@ -854,19 +1121,19 @@ const styles = StyleSheet.create({
   },
 
   loadMoreButton: {
-  marginTop: 4,
-  alignSelf: 'center',
-  backgroundColor: '#e9edf3',
-  paddingHorizontal: 16,
-  paddingVertical: 10,
-  borderRadius: 999,
-},
+    marginTop: 4,
+    alignSelf: 'center',
+    backgroundColor: '#e9edf3',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
 
-loadMoreText: {
-  color: '#0b2a6f',
-  fontSize: 12,
-  fontWeight: '800',
-  textTransform: 'uppercase',
-  letterSpacing: 1,
-},
+  loadMoreText: {
+    color: '#0b2a6f',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
 });

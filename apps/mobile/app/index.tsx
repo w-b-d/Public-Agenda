@@ -9,17 +9,12 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import {
-  User,
-  ChevronDown,
-  History,
-  CalendarDays,
-  Home,
-  Calendar,
-  Search,
-} from 'lucide-react-native';
+import { ChevronDown, History, CalendarDays } from 'lucide-react-native';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import BottomNav from '@/components/BottomNav';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { listCounties, listStates } from '@/lib/queries';
@@ -37,7 +32,7 @@ export default function HomeScreen() {
   const [countyLoading, setCountyLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [picker, setPicker] = useState<'state' | 'county' | null>(null);
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState('Archive');
 
   useEffect(() => {
     listStates()
@@ -93,17 +88,13 @@ export default function HomeScreen() {
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.header}>
-        <ThemedText style={styles.headerTitle}>Public Agenda</ThemedText>
-        <Pressable style={styles.headerIconButton}>
-          <User size={22} color="#6b7280" />
-        </Pressable>
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
+        <Header activeItem="Archive" />
+
         <View style={styles.hero}>
           <View style={styles.badge}>
             <ThemedText style={styles.badgeText}>
@@ -146,8 +137,8 @@ export default function HomeScreen() {
                   !selectedState
                     ? 'Choose state first...'
                     : countyLoading
-                    ? 'Loading...'
-                    : 'Choose locality...'
+                      ? 'Loading...'
+                      : 'Choose locality...'
                 }
                 onPress={() =>
                   selectedState && !countyLoading && setPicker('county')
@@ -188,39 +179,11 @@ export default function HomeScreen() {
             </ThemedText>
           </View>
         </View>
+
+        <Footer />
       </ScrollView>
 
-      <View style={styles.nav}>
-        <NavButton
-          icon={<Home size={20} color={activeTab === 'home' ? '#1f3a5f' : '#6b7280'} />}
-          label="Home"
-          active={activeTab === 'home'}
-          onPress={() => setActiveTab('home')}
-        />
-        <NavButton
-          icon={
-            <Calendar
-              size={20}
-              color={activeTab === 'calendar' ? '#1f3a5f' : '#6b7280'}
-            />
-          }
-          label="Calendar"
-          active={activeTab === 'calendar'}
-          onPress={() => setActiveTab('calendar')}
-        />
-        <NavButton
-          icon={<Search size={20} color={activeTab === 'search' ? '#1f3a5f' : '#6b7280'} />}
-          label="Search"
-          active={activeTab === 'search'}
-          onPress={() => setActiveTab('search')}
-        />
-        <NavButton
-          icon={<User size={20} color={activeTab === 'profile' ? '#1f3a5f' : '#6b7280'} />}
-          label="Profile"
-          active={activeTab === 'profile'}
-          onPress={() => setActiveTab('profile')}
-        />
-      </View>
+      <BottomNav activeTab="Archive" onChangeTab={setActiveTab as any} />
 
       <Modal
         visible={picker !== null}
@@ -305,28 +268,6 @@ function SelectRow({
   );
 }
 
-function NavButton({
-  icon,
-  label,
-  active,
-  onPress,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={styles.navButton}>
-      {icon}
-      <ThemedText style={[styles.navLabel, active && styles.navLabelActive]}>
-        {label}
-      </ThemedText>
-      {active ? <View style={styles.navDot} /> : null}
-    </Pressable>
-  );
-}
-
 function CourthouseMark() {
   const stroke = '#d9dce3';
 
@@ -342,14 +283,11 @@ function CourthouseMark() {
       <Circle cx="68" cy="22" r="8" stroke={stroke} strokeWidth={5} />
       <Rect x="20" y="34" width="96" height="8" stroke={stroke} strokeWidth={5} />
       <Rect x="28" y="44" width="80" height="8" stroke={stroke} strokeWidth={5} />
-
       <Rect x="32" y="56" width="12" height="28" stroke={stroke} strokeWidth={5} />
       <Rect x="54" y="56" width="12" height="28" stroke={stroke} strokeWidth={5} />
       <Rect x="76" y="56" width="12" height="28" stroke={stroke} strokeWidth={5} />
       <Rect x="98" y="56" width="12" height="28" stroke={stroke} strokeWidth={5} />
-
       <Rect x="58" y="70" width="20" height="14" stroke={stroke} strokeWidth={5} />
-
       <Line x1="22" y1="90" x2="114" y2="90" stroke={stroke} strokeWidth={6} />
       <Line x1="16" y1="100" x2="120" y2="100" stroke={stroke} strokeWidth={6} />
     </Svg>
@@ -362,33 +300,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#f6f7fb',
   },
 
-  header: {
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#132f66',
-  },
-
-  headerIconButton: {
-    padding: 4,
-  },
-
   content: {
-    padding: 20,
     paddingBottom: 120,
   },
 
   hero: {
     alignItems: 'center',
     marginBottom: 18,
+    paddingHorizontal: 20,
+    marginTop: 8,
   },
 
   badge: {
@@ -430,6 +350,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     marginTop: 18,
+    marginHorizontal: 20,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 10,
@@ -481,7 +402,6 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 14,
     backgroundColor: '#f1f2f5',
-    borderRadius: 0,
   },
 
   selectRowDisabled: {
@@ -504,7 +424,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingVertical: 15,
     backgroundColor: '#062b6f',
-    borderRadius: 0,
     alignItems: 'center',
   },
 
@@ -527,6 +446,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 20,
+    marginHorizontal: 20,
   },
 
   quickCard: {
@@ -546,45 +466,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.6,
     lineHeight: 18,
-  },
-
-  nav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 78,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-
-  navButton: {
-    alignItems: 'center',
-    gap: 4,
-    minWidth: 64,
-  },
-
-  navLabel: {
-    fontSize: 10,
-    opacity: 0.5,
-    fontWeight: '700',
-    color: '#6b7280',
-  },
-
-  navLabelActive: {
-    opacity: 1,
-    color: '#1f3a5f',
-  },
-
-  navDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: '#1f3a5f',
   },
 
   backdrop: {

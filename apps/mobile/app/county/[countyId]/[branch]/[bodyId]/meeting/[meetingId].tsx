@@ -28,7 +28,12 @@ import { getMeeting } from '@/lib/queries';
 import type { Meeting } from '@/types/db';
 
 export default function MeetingDetailScreen() {
-  const { meetingId } = useLocalSearchParams<{ meetingId: string }>();
+  const { countyId, branch, bodyId, meetingId } = useLocalSearchParams<{
+    countyId: string;
+    branch: string;
+    bodyId: string;
+    meetingId: string;
+  }>();
 
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,7 +87,7 @@ export default function MeetingDetailScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Header activeItem="Calendar" />
+        <Header activeItem="Select" countyId={countyId} />
         <View style={styles.hero}>
           <ThemedText style={styles.eyebrow}>MEETING RECORD</ThemedText>
           <ThemedText style={styles.title}>
