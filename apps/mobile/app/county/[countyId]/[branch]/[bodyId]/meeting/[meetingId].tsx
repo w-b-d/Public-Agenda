@@ -194,12 +194,21 @@ export default function MeetingDetailScreen() {
           </Section>
         ) : null}
 
-        <Section
+                <Section
           title="Transcript"
           icon={<FileText size={18} color="#0b2a6f" />}
         >
           {meeting.transcript ? (
-            <ThemedText style={styles.bodyText}>{meeting.transcript}</ThemedText>
+            <View style={styles.transcriptBox}>
+              <ScrollView
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                style={styles.transcriptScroll}
+                contentContainerStyle={styles.transcriptScrollContent}
+              >
+                <ThemedText style={styles.bodyText}>{meeting.transcript}</ThemedText>
+              </ScrollView>
+            </View>
           ) : (
             <ThemedText style={styles.placeholderText}>
               Transcript with timestamps will appear here once generated.
@@ -571,4 +580,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
   },
+
+    transcriptBox: {
+    maxHeight: 320,
+    borderWidth: 1,
+    borderColor: 'rgba(120,130,150,0.10)',
+    borderRadius: 10,
+    backgroundColor: '#fbfcfe',
+    overflow: 'hidden',
+  },
+
+  transcriptScroll: {
+    maxHeight: 320,
+  },
+
+  transcriptScrollContent: {
+    padding: 12,
+  },
+
 });
