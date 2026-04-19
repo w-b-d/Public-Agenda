@@ -42,3 +42,60 @@ export interface Meeting {
   created_at: string;
   updated_at: string;
 }
+
+export interface Person {
+  id: string;
+  name: string;
+  normalized_name: string;
+  photo_url: string | null;
+  bio: string | null;
+  email: string | null;
+  phone: string | null;
+  official_url: string | null;
+  jurisdiction_id: string;
+  external_ids: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Role {
+  id: string;
+  person_id: string;
+  body_id: string;
+  title: string | null;
+  district: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  source: string;
+  external_id: string | null;
+}
+
+/** Lightweight body shape returned by joined person/meeting queries. */
+export interface BodyRef {
+  id: string;
+  name: string;
+  category: BodyCategory;
+}
+
+/** A body member: their role row plus the person row. */
+export interface PersonWithRole {
+  person: Person;
+  role: Role;
+}
+
+/** A person's role with its body denormalized for display. */
+export interface RoleWithBody extends Role {
+  body: BodyRef;
+}
+
+/** Full person detail page payload. */
+export interface PersonDetail {
+  person: Person;
+  current_roles: RoleWithBody[];
+  past_roles: RoleWithBody[];
+}
+
+/** Meeting with its body denormalized for display. */
+export interface MeetingWithBody extends Meeting {
+  body: BodyRef;
+}

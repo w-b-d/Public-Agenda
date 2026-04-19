@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Iterable
+from typing import Iterable, Optional
 
 
 class MeetingAdapter(ABC):
@@ -52,4 +52,38 @@ class MeetingAdapter(ABC):
         """
         raise NotImplementedError(
             f"{type(self).__name__} does not support tenant-wide enumeration"
+        )
+
+    # ------------------------------------------------------------------
+    # People / roles — optional, platform-dependent
+    # ------------------------------------------------------------------
+    def list_persons(self, include_inactive: bool = False) -> Iterable[dict]:
+        """Yield person records for this tenant.
+
+        Default raises — adapters whose platform exposes roster data override.
+        Each yielded dict must include:
+            external_id (str)  -- stable per platform
+            name (str)
+        and may include:
+            first_name, last_name, email, phone, photo_url, active
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not expose person data"
+        )
+
+    def list_roles(self, body_ext_id: Optional[str] = None) -> Iterable[dict]:
+        """Yield role records linking persons to bodies on this tenant.
+
+        If body_ext_id is provided, filter to that body's roles only.
+
+        Default raises — adapters whose platform exposes roster data override.
+        Each yielded dict must include:
+            external_id (str)     -- stable per platform
+            person_ext_id (str)   -- platform's person id
+            body_ext_id (str)     -- platform's body id
+        and may include:
+            title (str), district (str), start_date (date), end_date (date)
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not expose role data"
         )

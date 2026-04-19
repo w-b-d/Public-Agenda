@@ -6,14 +6,17 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Calendar as RNCalendar } from 'react-native-calendars';
 import {
   ArrowRight,
+  ChevronRight,
   Clock3,
   MapPin,
   Search,
+  User as UserIcon,
   Video,
 } from 'lucide-react-native';
 
@@ -27,7 +30,8 @@ import {
   listBodiesForCounty,
   listMeetingsForCounty,
 } from '@/lib/queries';
-import type { Body, Jurisdiction, Meeting } from '@/types/db';
+import { listMembersForBodies } from '@/lib/queries/people';
+import type { Body, Jurisdiction, Meeting, PersonWithRole } from '@/types/db';
 
 type MeetingWithBody = Meeting & {
   body?: {
@@ -36,6 +40,7 @@ type MeetingWithBody = Meeting & {
     category?: string;
     jurisdiction_id?: string;
   };
+  body_id?: string;
 };
 
 type Suggestion = {
@@ -46,9 +51,19 @@ type Suggestion = {
 
 const PAGE_SIZE = 10;
 
+// Above this width we render Public Officials + Chronicle of Events as
+// two columns. Below we stack them — phone widths (≤430) are always below.
+const TWO_COLUMN_BREAKPOINT = 900;
+
+function getMeetingBodyId(meeting: MeetingWithBody) {
+  return meeting.body?.id ?? meeting.body_id ?? '';
+}
+
 export default function CountyDashboard() {
   const { countyId } = useLocalSearchParams<{ countyId: string }>();
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isWide = windowWidth >= TWO_COLUMN_BREAKPOINT;
 
   const [county, setCounty] = useState<Jurisdiction | null>(null);
   const [bodies, setBodies] = useState<Body[]>([]);
@@ -65,6 +80,10 @@ export default function CountyDashboard() {
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [pastPage, setPastPage] = useState(1);
 
+  const [members, setMembers] = useState<PersonWithRole[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersVisible, setMembersVisible] = useState(20);
+
   useEffect(() => {
     if (!countyId) return;
 
@@ -74,9 +93,15 @@ export default function CountyDashboard() {
       listMeetingsForCounty(countyId),
     ])
       .then(([countyData, bodiesData, meetingsData]) => {
+        const safeBodies = (bodiesData ?? []) as Body[];
+        const safeMeetings = (meetingsData as MeetingWithBody[]) ?? [];
+
         setCounty(countyData);
-        setBodies(bodiesData ?? []);
-        setMeetings((meetingsData as MeetingWithBody[]) ?? []);
+        setBodies(safeBodies);
+        setMeetings(safeMeetings);
+        // Checkbox semantics: default is everything selected. Unchecking
+        // removes items from view; fully empty selection hides everything.
+        setSelectedBodies(safeBodies.map((body) => body.id));
       })
       .finally(() => setLoading(false));
   }, [countyId]);
@@ -214,8 +239,55 @@ export default function CountyDashboard() {
     return branchBodies.every((id) => selectedBodies.includes(id));
   };
 
+  /**
+   * Body IDs that match the current filter (search text + explicit selection).
+   * Checkbox semantics: selection is ALWAYS applied. By default every body
+   * is selected, so the unfiltered view still shows everything; unchecking
+   * bodies removes them from every downstream list (calendar, members,
+   * events).
+   */
+  const filteredBodyIds = useMemo(() => {
+    let result = bodies.filter((body) => selectedBodies.includes(body.id));
+
+    if (normalizedSearch) {
+      result = result.filter((body) => {
+        const name = body.name?.toLowerCase() ?? '';
+        const category =
+          typeof body.category === 'string' ? body.category.toLowerCase() : '';
+        return (
+          name.includes(normalizedSearch) ||
+          category.includes(normalizedSearch)
+        );
+      });
+    }
+
+    return result.map((b) => b.id);
+  }, [bodies, normalizedSearch, selectedBodies]);
+
+  // Reset paginated reveal whenever the filter changes.
+  useEffect(() => {
+    setMembersVisible(20);
+  }, [filteredBodyIds]);
+
+  // Load members for the filtered body set. Cheap enough to refetch on
+  // change (Supabase returns a few hundred rows even for county-wide);
+  // we can add a cache if it becomes a problem.
+  useEffect(() => {
+    if (filteredBodyIds.length === 0) {
+      setMembers([]);
+      return;
+    }
+    setMembersLoading(true);
+    listMembersForBodies(filteredBodyIds)
+      .then((m) => setMembers(m))
+      .finally(() => setMembersLoading(false));
+  }, [filteredBodyIds]);
+
   const filteredMeetings = useMemo(() => {
-    let result = meetings;
+    let result = meetings.filter((meeting) => {
+      const meetingBodyId = getMeetingBodyId(meeting);
+      return !!meetingBodyId && selectedBodies.includes(meetingBodyId);
+    });
 
     if (normalizedSearch) {
       result = result.filter((meeting) => {
@@ -229,13 +301,6 @@ export default function CountyDashboard() {
           title.includes(normalizedSearch)
         );
       });
-    }
-
-    if (selectedBodies.length > 0) {
-      result = result.filter(
-        (meeting) =>
-          !!meeting.body?.id && selectedBodies.includes(meeting.body.id)
-      );
     }
 
     if (selectedDate) {
@@ -273,10 +338,9 @@ export default function CountyDashboard() {
           })()
         : true;
 
+      const meetingBodyId = getMeetingBodyId(meeting);
       const matchesBodies =
-        selectedBodies.length > 0
-          ? !!meeting.body?.id && selectedBodies.includes(meeting.body.id)
-          : true;
+        !!meetingBodyId && selectedBodies.includes(meetingBodyId);
 
       return matchesSearch && matchesBodies;
     });
@@ -328,13 +392,18 @@ export default function CountyDashboard() {
   const hasMorePast = visiblePastMeetings.length < pastMeetings.length;
 
   const goToMeeting = (meeting: MeetingWithBody) => {
-    if (!meeting.body?.id || !meeting.id || !countyId) return;
-    const branch = meeting.body.category;
+    const meetingBodyId = getMeetingBodyId(meeting);
+    if (!meetingBodyId || !meeting.id || !countyId) return;
+    const branch = meeting.body?.category;
     if (!branch) return;
 
     router.push(
-      `/county/${countyId}/${branch}/${meeting.body.id}/meeting/${meeting.id}`
+      `/county/${countyId}/${branch}/${meetingBodyId}/meeting/${meeting.id}`
     );
+  };
+
+  const goToPerson = (personId: string) => {
+    router.push(`/person/${personId}`);
   };
 
   return (
@@ -458,40 +527,50 @@ export default function CountyDashboard() {
             {showAdvancedFilter ? (
               <View style={styles.advancedCard}>
                 <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.advancedColumns}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={styles.advancedVerticalContent}
                 >
-                  {Object.entries(groupedBodies).map(([branch, branchBodies]) => (
-                    <View key={branch} style={styles.advancedColumn}>
-                      <Pressable
-                        style={styles.branchRow}
-                        onPress={() => toggleBranch(branch)}
-                      >
-                        <Checkbox checked={isBranchSelected(branch)} />
-                        <ThemedText style={styles.branchTitle}>
-                          {branch.toUpperCase()}
-                        </ThemedText>
-                      </Pressable>
-
-                      <View style={styles.branchBodiesList}>
-                        {branchBodies.map((body) => (
+                  <ScrollView
+                    horizontal
+                    nestedScrollEnabled
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.advancedColumns}
+                  >
+                    {Object.entries(groupedBodies).map(
+                      ([branch, branchBodies]) => (
+                        <View key={branch} style={styles.advancedColumn}>
                           <Pressable
-                            key={body.id}
-                            style={styles.bodyRow}
-                            onPress={() => toggleBody(body.id)}
+                            style={styles.branchRow}
+                            onPress={() => toggleBranch(branch)}
                           >
-                            <Checkbox
-                              checked={selectedBodies.includes(body.id)}
-                            />
-                            <ThemedText style={styles.bodyRowText}>
-                              {body.name}
+                            <Checkbox checked={isBranchSelected(branch)} />
+                            <ThemedText style={styles.branchTitle}>
+                              {branch.toUpperCase()}
                             </ThemedText>
                           </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                  ))}
+
+                          <View style={styles.branchBodiesList}>
+                            {branchBodies.map((body) => (
+                              <Pressable
+                                key={body.id}
+                                style={styles.bodyRow}
+                                onPress={() => toggleBody(body.id)}
+                              >
+                                <Checkbox
+                                  checked={selectedBodies.includes(body.id)}
+                                />
+                                <ThemedText style={styles.bodyRowText}>
+                                  {body.name}
+                                </ThemedText>
+                              </Pressable>
+                            ))}
+                          </View>
+                        </View>
+                      )
+                    )}
+                  </ScrollView>
                 </ScrollView>
               </View>
             ) : null}
@@ -522,46 +601,67 @@ export default function CountyDashboard() {
             />
           </View>
 
-          <View style={styles.feedHeader}>
-            <View>
-              <ThemedText style={styles.feedTitle}>
-                Chronicle of Events
-              </ThemedText>
-              <ThemedText style={styles.feedSubtitle}>
-                {selectedDate
-                  ? `Filtered by ${selectedDate}`
-                  : 'All tracked meetings for this county.'}
-              </ThemedText>
+          <View style={isWide ? styles.twoColumnRow : undefined}>
+            <View style={isWide ? styles.columnNarrow : undefined}>
+              <MembersBlock
+                members={members}
+                visible={membersVisible}
+                loading={membersLoading}
+                filterActive={
+                  filteredBodyIds.length < bodies.length ||
+                  normalizedSearch.length > 0
+                }
+                totalBodies={filteredBodyIds.length}
+                onPress={goToPerson}
+                onShowMore={() => setMembersVisible((n) => n + 20)}
+              />
             </View>
 
-            {selectedDate ? (
-              <Pressable onPress={() => setSelectedDate(null)}>
-                <ThemedText style={styles.clearFilter}>Clear Date</ThemedText>
-              </Pressable>
-            ) : null}
+            <View style={isWide ? styles.columnWide : undefined}>
+              <View style={styles.feedHeader}>
+                <View>
+                  <ThemedText style={styles.feedTitle}>
+                    Chronicle of Events
+                  </ThemedText>
+                  <ThemedText style={styles.feedSubtitle}>
+                    {selectedDate
+                      ? `Filtered by ${selectedDate}`
+                      : 'All tracked meetings for this county.'}
+                  </ThemedText>
+                </View>
+
+                {selectedDate ? (
+                  <Pressable onPress={() => setSelectedDate(null)}>
+                    <ThemedText style={styles.clearFilter}>
+                      Clear Date
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+              </View>
+
+              <MeetingSection
+                title="Upcoming"
+                meetings={visibleUpcomingMeetings}
+                onPress={goToMeeting}
+                hasMore={hasMoreUpcoming}
+                onLoadMore={() => setUpcomingPage((p) => p + 1)}
+              />
+
+              <MeetingSection
+                title="Past"
+                meetings={visiblePastMeetings}
+                onPress={goToMeeting}
+                hasMore={hasMorePast}
+                onLoadMore={() => setPastPage((p) => p + 1)}
+              />
+
+              {filteredMeetings.length === 0 ? (
+                <ThemedText style={styles.emptyText}>
+                  No meetings match this filter.
+                </ThemedText>
+              ) : null}
+            </View>
           </View>
-
-          <MeetingSection
-            title="Upcoming"
-            meetings={visibleUpcomingMeetings}
-            onPress={goToMeeting}
-            hasMore={hasMoreUpcoming}
-            onLoadMore={() => setUpcomingPage((p) => p + 1)}
-          />
-
-          <MeetingSection
-            title="Past"
-            meetings={visiblePastMeetings}
-            onPress={goToMeeting}
-            hasMore={hasMorePast}
-            onLoadMore={() => setPastPage((p) => p + 1)}
-          />
-
-          {filteredMeetings.length === 0 ? (
-            <ThemedText style={styles.emptyText}>
-              No meetings match this filter.
-            </ThemedText>
-          ) : null}
 
           <Footer />
         </ScrollView>
@@ -569,6 +669,90 @@ export default function CountyDashboard() {
 
       <BottomNav activeTab="Calendar" onChangeTab={setActiveTab as any} />
     </ThemedView>
+  );
+}
+
+function MembersBlock({
+  members,
+  visible,
+  loading,
+  filterActive,
+  totalBodies,
+  onPress,
+  onShowMore,
+}: {
+  members: PersonWithRole[];
+  visible: number;
+  loading: boolean;
+  filterActive: boolean;
+  totalBodies: number;
+  onPress: (id: string) => void;
+  onShowMore: () => void;
+}) {
+  const shown = members.slice(0, visible);
+  const remaining = Math.max(members.length - visible, 0);
+
+  const subtitle = filterActive
+    ? `${members.length} current members across ${totalBodies} ${
+        totalBodies === 1 ? 'body' : 'bodies'
+      }`
+    : `${members.length} current officials tracked in this county`;
+
+  return (
+    <View style={styles.membersBlock}>
+      <View style={styles.membersHeader}>
+        <View style={{ flex: 1 }}>
+          <ThemedText style={styles.feedTitle}>Public Officials</ThemedText>
+          <ThemedText style={styles.feedSubtitle}>{subtitle}</ThemedText>
+        </View>
+      </View>
+
+      {loading && members.length === 0 ? (
+        <View style={styles.membersLoadingCard}>
+          <ActivityIndicator />
+        </View>
+      ) : members.length === 0 ? (
+        <View style={styles.membersEmptyCard}>
+          <ThemedText style={styles.mutedText}>
+            No member data yet for the selected bodies.
+          </ThemedText>
+        </View>
+      ) : (
+        <>
+          <View style={styles.membersList}>
+            {shown.map(({ person, role }) => (
+              <Pressable
+                key={person.id}
+                style={styles.memberCard}
+                onPress={() => onPress(person.id)}
+              >
+                <View style={styles.memberAvatar}>
+                  <UserIcon size={18} color="#0b2a6f" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ThemedText style={styles.memberName}>
+                    {person.name}
+                  </ThemedText>
+                  <ThemedText style={styles.memberMeta} numberOfLines={1}>
+                    {role.title ?? 'Member'}
+                    {role.district ? ` · ${role.district}` : ''}
+                  </ThemedText>
+                </View>
+                <ChevronRight size={18} color="#7c8798" />
+              </Pressable>
+            ))}
+          </View>
+
+          {remaining > 0 ? (
+            <Pressable style={styles.showMoreButton} onPress={onShowMore}>
+              <ThemedText style={styles.showMoreText}>
+                Show {Math.min(20, remaining)} more ({remaining} remaining)
+              </ThemedText>
+            </Pressable>
+          ) : null}
+        </>
+      )}
+    </View>
   );
 }
 
@@ -857,6 +1041,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
+  advancedVerticalContent: {
+    paddingVertical: 12,
+  },
+
   advancedCard: {
     marginBottom: 18,
     backgroundColor: '#ffffff',
@@ -1135,5 +1323,111 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+
+  twoColumnRow: {
+    flexDirection: 'row',
+    gap: 24,
+    alignItems: 'flex-start',
+  },
+
+  columnNarrow: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  columnWide: {
+    flex: 3,
+    minWidth: 0,
+  },
+
+  membersBlock: {
+    marginBottom: 28,
+  },
+
+  membersHeader: {
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+
+  membersList: {
+    gap: 8,
+  },
+
+  memberCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(120,130,150,0.10)',
+  },
+
+  memberAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(11,42,111,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  memberName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0b2a6f',
+  },
+
+  memberMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#7c8798',
+    fontWeight: '600',
+  },
+
+  showMoreButton: {
+    alignSelf: 'center',
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(11,42,111,0.25)',
+    backgroundColor: '#ffffff',
+  },
+
+  showMoreText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0b2a6f',
+    letterSpacing: 0.6,
+  },
+
+  membersLoadingCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(120,130,150,0.10)',
+    alignItems: 'center',
+  },
+
+  membersEmptyCard: {
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(120,130,150,0.10)',
+  },
+
+  mutedText: {
+    fontSize: 13,
+    color: '#7c8798',
+    textAlign: 'center',
   },
 });
