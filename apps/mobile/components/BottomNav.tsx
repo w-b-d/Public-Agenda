@@ -2,12 +2,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import {
   Archive,
   Calendar as CalendarIcon,
-  Search,
+  ListFilter,
   UserCheck,
 } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 
-type BottomNavTab = 'Archive' | 'Calendar' | 'Search' | 'Registry';
+type BottomNavTab = 'Archive' | 'Calendar' | 'Select' | 'Registry';
 
 type BottomNavProps = {
   activeTab?: BottomNavTab;
@@ -20,7 +20,7 @@ const navItems: Array<{
 }> = [
   { icon: Archive, label: 'Archive' },
   { icon: CalendarIcon, label: 'Calendar' },
-  { icon: Search, label: 'Search' },
+  { icon: ListFilter, label: 'Select' },
   { icon: UserCheck, label: 'Registry' },
 ];
 

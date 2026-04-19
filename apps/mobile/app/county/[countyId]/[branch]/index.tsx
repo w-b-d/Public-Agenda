@@ -53,7 +53,7 @@ export default function BranchScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Header activeItem="Archive" />
+          <Header activeItem="Select" countyId={countyId} />
           <View style={styles.hero}>
             <ThemedText style={styles.eyebrow}>CIVIC DIRECTORY</ThemedText>
             <ThemedText style={styles.title}>

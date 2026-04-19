@@ -114,7 +114,7 @@ export default function BodyCalendarScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Header />
+          <Header activeItem="Select" countyId={countyId} />
           <View style={styles.hero}>
             <ThemedText style={styles.eyebrow}>CIVIC MEETING ARCHIVE</ThemedText>
             <ThemedText style={styles.title}>
