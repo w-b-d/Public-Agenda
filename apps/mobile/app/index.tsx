@@ -1,5 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -7,9 +7,16 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from 'react-native';
-import { ChevronDown, History, CalendarDays } from 'lucide-react-native';
+import {
+  ChevronDown,
+  History,
+  CalendarDays,
+  Search,
+  X,
+} from 'lucide-react-native';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 
 import Header from '@/components/Header';
@@ -31,8 +38,12 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [countyLoading, setCountyLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [picker, setPicker] = useState<'state' | 'county' | null>(null);
+  const [picker, setPicker] = useState<'state' | null>(null);
   const [activeTab, setActiveTab] = useState('Archive');
+
+  const [countyQuery, setCountyQuery] = useState('');
+  const [showCountySuggestions, setShowCountySuggestions] = useState(false);
+  const [showFullCountyList, setShowFullCountyList] = useState(false);
 
   useEffect(() => {
     listStates()
@@ -58,6 +69,9 @@ export default function HomeScreen() {
     if (!selectedState) {
       setCounties([]);
       setSelectedCounty(null);
+      setCountyQuery('');
+      setShowCountySuggestions(false);
+      setShowFullCountyList(false);
       return;
     }
 
@@ -76,13 +90,55 @@ export default function HomeScreen() {
 
         if (safeCounties.length === 1) {
           setSelectedCounty(safeCounties[0]);
+          setCountyQuery(safeCounties[0].name);
+        } else {
+          setSelectedCounty(null);
+          setCountyQuery('');
         }
       })
       .catch((e) => setError(String(e)))
       .finally(() => setCountyLoading(false));
   }, [selectedState]);
 
+  const normalizedCountyQuery = countyQuery.trim().toLowerCase();
+
+  const filteredCounties = useMemo(() => {
+    if (!normalizedCountyQuery) return counties;
+    return counties.filter((county) =>
+      county.name.toLowerCase().includes(normalizedCountyQuery)
+    );
+  }, [counties, normalizedCountyQuery]);
+
+  const countySuggestions = useMemo(() => {
+    if (!normalizedCountyQuery) return [];
+    return filteredCounties.slice(0, 6);
+  }, [filteredCounties, normalizedCountyQuery]);
+
   const canGo = !!selectedState && !!selectedCounty;
+
+  const handleSelectCounty = (county: Jurisdiction) => {
+    setSelectedCounty(county);
+    setCountyQuery(county.name);
+    setShowCountySuggestions(false);
+    setShowFullCountyList(false);
+  };
+
+  const handleCountyInputChange = (text: string) => {
+    setCountyQuery(text);
+    setShowCountySuggestions(true);
+    setShowFullCountyList(false);
+
+    if (!text.trim()) {
+      setSelectedCounty(null);
+      return;
+    }
+
+    const exactMatch = counties.find(
+      (county) => county.name.toLowerCase() === text.trim().toLowerCase()
+    );
+
+    setSelectedCounty(exactMatch ?? null);
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -130,21 +186,129 @@ export default function HomeScreen() {
                 onPress={() => setPicker('state')}
               />
 
-              <SelectRow
-                label="Select County"
-                value={selectedCounty?.name}
-                placeholder={
-                  !selectedState
-                    ? 'Choose state first...'
-                    : countyLoading
-                      ? 'Loading...'
-                      : 'Choose locality...'
-                }
-                onPress={() =>
-                  selectedState && !countyLoading && setPicker('county')
-                }
-                disabled={!selectedState || countyLoading}
-              />
+              <View style={styles.selectBlock}>
+                <ThemedText style={styles.selectLabel}>Select County</ThemedText>
+
+                <View
+                  style={[
+                    styles.searchSelectBox,
+                    (!selectedState || countyLoading) && styles.selectRowDisabled,
+                  ]}
+                >
+                  <Search size={16} color="#7b8794" />
+
+                  <TextInput
+                    value={countyQuery}
+                    onChangeText={handleCountyInputChange}
+                    onFocus={() => {
+                      if (!selectedState || countyLoading) return;
+                      setShowCountySuggestions(true);
+                    }}
+                    placeholder={
+                      !selectedState
+                        ? 'Choose state first...'
+                        : countyLoading
+                        ? 'Loading...'
+                        : 'Search counties...'
+                    }
+                    placeholderTextColor="#798291"
+                    editable={!!selectedState && !countyLoading}
+                    style={styles.searchSelectInput}
+                  />
+
+                  {countyQuery ? (
+                    <Pressable
+                      onPress={() => {
+                        setCountyQuery('');
+                        setSelectedCounty(null);
+                        setShowCountySuggestions(false);
+                        setShowFullCountyList(false);
+                      }}
+                    >
+                      <X size={16} color="#7b8794" />
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                {showCountySuggestions &&
+                countySuggestions.length > 0 &&
+                selectedState &&
+                !countyLoading ? (
+                  <View style={styles.inlineSuggestionsCard}>
+                    {countySuggestions.map((county, index) => (
+                      <Pressable
+                        key={county.id}
+                        style={[
+                          styles.inlineSuggestionRow,
+                          index !== countySuggestions.length - 1 &&
+                            styles.inlineSuggestionRowBorder,
+                        ]}
+                        onPress={() => handleSelectCounty(county)}
+                      >
+                        <View style={styles.inlineSuggestionLeft}>
+                          <Search size={14} color="#7c8798" />
+                          <ThemedText style={styles.inlineSuggestionLabel}>
+                            {county.name}
+                          </ThemedText>
+                        </View>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+
+                {selectedState && !countyLoading ? (
+                  <Pressable
+                    onPress={() => {
+                      setShowFullCountyList((prev) => !prev);
+                      setShowCountySuggestions(false);
+                    }}
+                    style={styles.fullListToggle}
+                  >
+                    <ThemedText style={styles.fullListToggleText}>
+                      {showFullCountyList
+                        ? 'Hide full county list'
+                        : 'Show full county list'}
+                    </ThemedText>
+                    <ChevronDown
+                      size={16}
+                      color="#0b2a6f"
+                      style={showFullCountyList ? styles.chevronUp : undefined}
+                    />
+                  </Pressable>
+                ) : null}
+
+                {showFullCountyList && selectedState && !countyLoading ? (
+                  <View style={styles.fullListCard}>
+                    <ScrollView
+                      nestedScrollEnabled
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator
+                    >
+                      {filteredCounties.length > 0 ? (
+                        filteredCounties.map((county, index) => (
+                          <Pressable
+                            key={county.id}
+                            style={[
+                              styles.fullListRow,
+                              index !== filteredCounties.length - 1 &&
+                                styles.fullListRowBorder,
+                            ]}
+                            onPress={() => handleSelectCounty(county)}
+                          >
+                            <ThemedText style={styles.fullListRowText}>
+                              {county.name}
+                            </ThemedText>
+                          </Pressable>
+                        ))
+                      ) : (
+                        <ThemedText style={styles.emptyText}>
+                          No matching counties.
+                        </ThemedText>
+                      )}
+                    </ScrollView>
+                  </View>
+                ) : null}
+              </View>
             </View>
           )}
 
@@ -193,12 +357,10 @@ export default function HomeScreen() {
       >
         <Pressable style={styles.backdrop} onPress={() => setPicker(null)}>
           <View style={styles.sheet}>
-            <ThemedText style={styles.sheetTitle}>
-              Select {picker === 'state' ? 'State' : 'County'}
-            </ThemedText>
+            <ThemedText style={styles.sheetTitle}>Select State</ThemedText>
 
             <FlatList
-              data={(picker === 'state' ? states : counties).filter(
+              data={states.filter(
                 (item): item is Jurisdiction =>
                   item != null &&
                   typeof item.id === 'string' &&
@@ -209,12 +371,11 @@ export default function HomeScreen() {
                 <Pressable
                   style={styles.sheetRow}
                   onPress={() => {
-                    if (picker === 'state') {
-                      setSelectedState(item);
-                      setSelectedCounty(null);
-                    } else {
-                      setSelectedCounty(item);
-                    }
+                    setSelectedState(item);
+                    setSelectedCounty(null);
+                    setCountyQuery('');
+                    setShowCountySuggestions(false);
+                    setShowFullCountyList(false);
                     setPicker(null);
                   }}
                 >
@@ -418,6 +579,103 @@ const styles = StyleSheet.create({
 
   selectPlaceholder: {
     color: '#798291',
+  },
+
+  searchSelectBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: '#f1f2f5',
+  },
+
+  searchSelectInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#4a5565',
+    fontWeight: '600',
+    paddingVertical: 0,
+  },
+
+  inlineSuggestionsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(120,130,150,0.10)',
+    overflow: 'hidden',
+    maxHeight: 240,
+  },
+
+  inlineSuggestionRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 52,
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+
+  inlineSuggestionRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(120,130,150,0.10)',
+  },
+
+  inlineSuggestionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  inlineSuggestionLabel: {
+    fontSize: 15,
+    color: '#111827',
+    fontWeight: '600',
+  },
+
+  fullListToggle: {
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+
+  fullListToggleText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0b2a6f',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+
+  chevronUp: {
+    transform: [{ rotate: '180deg' }],
+  },
+
+  fullListCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(120,130,150,0.10)',
+    maxHeight: 260,
+    overflow: 'hidden',
+  },
+
+  fullListRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+  },
+
+  fullListRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(120,130,150,0.10)',
+  },
+
+  fullListRowText: {
+    fontSize: 15,
+    color: '#111827',
+    fontWeight: '600',
   },
 
   button: {
