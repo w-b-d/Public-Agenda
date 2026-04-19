@@ -1,0 +1,16 @@
+# Santa Cruz County, California
+# BoS publishes via Granicus IQM2 (no public API or iCal feed).
+# Body created here for navigation; meeting data via seed SQL when available.
+
+jurisdiction:
+  name: "Santa Cruz County"
+  slug: "santa-cruz-county"
+  state: "CA"
+  type: "county"
+  parent_state: "California"
+
+bodies:
+  - name: "Board of Supervisors"
+    slug: "board-of-supervisors"
+    category: "county_government"
+    adapter: "manual"
