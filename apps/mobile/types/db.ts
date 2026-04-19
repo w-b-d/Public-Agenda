@@ -24,6 +24,11 @@ export interface Body {
   created_at: string;
 }
 
+export interface Attendee {
+  name: string;
+  title: string | null;
+}
+
 export interface Meeting {
   id: string;
   body_id: string;
@@ -36,6 +41,8 @@ export interface Meeting {
   video_file_url: string | null;
   join_url: string | null;
   ai_summary: string | null;
+  attendees: Attendee[] | null;
+  transcript: string | null;
   source: string;
   external_id: string;
   created_at: string;

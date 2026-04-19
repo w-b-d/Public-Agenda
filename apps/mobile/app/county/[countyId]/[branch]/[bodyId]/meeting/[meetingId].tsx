@@ -19,11 +19,13 @@ import {
   Sparkles,
   Users,
   ArrowUpRight,
+  MessageCircle,
 } from 'lucide-react-native';
 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BottomNav from '@/components/BottomNav';
+import MeetingChat from '@/components/MeetingChat';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getMeeting } from '@/lib/queries';
@@ -169,18 +171,35 @@ export default function MeetingDetailScreen() {
           title="AI Summary"
           icon={<Sparkles size={18} color="#0b2a6f" />}
         >
-          <ThemedText style={styles.placeholderText}>
-            {meeting.ai_summary ?? 'Summary will appear here once generated.'}
-          </ThemedText>
+          {meeting.ai_summary ? (
+            <ThemedText style={styles.bodyText}>{meeting.ai_summary}</ThemedText>
+          ) : (
+            <ThemedText style={styles.placeholderText}>
+              Summary will appear here once generated.
+            </ThemedText>
+          )}
         </Section>
+
+        {meeting.transcript ? (
+          <Section
+            title="Ask the Meeting"
+            icon={<MessageCircle size={18} color="#0b2a6f" />}
+          >
+            <MeetingChat context={meeting.transcript} />
+          </Section>
+        ) : null}
 
         <Section
           title="Transcript"
           icon={<FileText size={18} color="#0b2a6f" />}
         >
-          <ThemedText style={styles.placeholderText}>
-            Transcript with timestamps will appear here once generated.
-          </ThemedText>
+          {meeting.transcript ? (
+            <ThemedText style={styles.bodyText}>{meeting.transcript}</ThemedText>
+          ) : (
+            <ThemedText style={styles.placeholderText}>
+              Transcript with timestamps will appear here once generated.
+            </ThemedText>
+          )}
         </Section>
 
         {!isUpcoming ? (
@@ -188,9 +207,20 @@ export default function MeetingDetailScreen() {
             title="Attendees"
             icon={<Users size={18} color="#0b2a6f" />}
           >
-            <ThemedText style={styles.placeholderText}>
-              Attendee list will appear here.
-            </ThemedText>
+            {meeting.attendees && meeting.attendees.length > 0 ? (
+              <View style={{ gap: 6 }}>
+                {meeting.attendees.map((a, i) => (
+                  <ThemedText key={i} style={styles.bodyText}>
+                    {a.name}
+                    {a.title ? ` — ${a.title}` : ''}
+                  </ThemedText>
+                ))}
+              </View>
+            ) : (
+              <ThemedText style={styles.placeholderText}>
+                Attendee list will appear here.
+              </ThemedText>
+            )}
           </Section>
         ) : null}
 
@@ -487,6 +517,26 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     lineHeight: 22,
     fontStyle: 'italic',
+  },
+
+  summaryItem: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#0b2a6f',
+    paddingLeft: 10,
+    gap: 4,
+  },
+
+  summaryTopic: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0b2a6f',
+  },
+
+  summaryOutcome: {
+    fontSize: 13,
+    color: '#0b2a6f',
+    fontWeight: '700',
+    marginTop: 2,
   },
 
   linkButton: {
