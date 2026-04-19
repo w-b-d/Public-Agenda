@@ -22,6 +22,20 @@ from scraper.adapters.base import MeetingAdapter
 from scraper.normalize import extract_join_url
 
 
+def _extract_video_url(event: dict) -> Optional[str]:
+    """Prefer direct media URLs; fall back to a YouTube watch URL when only the ID is present."""
+    for key in ("mediaSourcePathMp4", "mediaSourcePath", "mediaStreamPath"):
+        val = (event.get(key) or "").strip()
+        if val:
+            return val
+    yt_id = (event.get("youtubeVideoId") or "").strip()
+    if yt_id:
+        return f"https://www.youtube.com/watch?v={yt_id}"
+    # externalMediaUrl is often a channel homepage (not a specific video), so
+    # we deliberately don't use it — misleading for a transcriber pipeline.
+    return None
+
+
 class CivicClerkAdapter(MeetingAdapter):
     source = "civicclerk"
 
@@ -76,7 +90,7 @@ class CivicClerkAdapter(MeetingAdapter):
             "start_time": dt.isoformat(),
             "location": None,  # not exposed by /Events; could fetch /Agendas later
             "agenda_url": f"{self._portal_base()}/event/{eid}",
-            "video_url": event.get("mediaSourcePath") or None,
+            "video_url": _extract_video_url(event),
             "join_url": extract_join_url(event.get("eventDescription")),
         }
 

@@ -33,6 +33,7 @@ export interface Meeting {
   location: string | null;
   agenda_url: string | null;
   video_url: string | null;
+  video_file_url: string | null;
   join_url: string | null;
   ai_summary: string | null;
   source: string;

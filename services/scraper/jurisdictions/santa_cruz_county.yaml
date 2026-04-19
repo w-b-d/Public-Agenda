@@ -17,6 +17,14 @@ jurisdiction:
   parent_state: "California"
 
 sources:
+  # County government — PrimeGov (OneMeeting) auto-enumerates BoS + all
+  # county commissions/boards. Note: PrimeGov doesn't expose video URLs
+  # in its API; Swagit-hosted video URL resolution is a separate follow-up.
+  - adapter: primegov
+    category: county_government
+    config:
+      tenant: santacruzcountyca
+
   # Soquel Creek Water District — CivicClerk.
   - adapter: civicclerk
     category: special_district
@@ -39,31 +47,9 @@ sources:
       tenant: centralfiresc
 
 bodies:
-  # ---- County government on Granicus IQM2 (no adapter yet) ----
-  - name: "Board of Supervisors"
-    slug: "board-of-supervisors"
-    category: "county_government"
-    adapter: "manual"
-
-  - name: "Planning Commission"
-    slug: "planning-commission"
-    category: "county_government"
-    adapter: "manual"
-
-  - name: "Assessment Appeals Board"
-    slug: "assessment-appeals-board"
-    category: "county_government"
-    adapter: "manual"
-
-  - name: "Flood Control & Water Conservation District (Zone 5)"
-    slug: "flood-control-zone-5"
-    category: "special_district"
-    adapter: "manual"
-
-  - name: "Flood Control & Water Conservation District (Zone 7)"
-    slug: "flood-control-zone-7"
-    category: "special_district"
-    adapter: "manual"
+  # County government bodies (BoS, Planning Commission, Assessment Appeals
+  # Board, Flood Control districts, etc.) are auto-enumerated by the
+  # primegov source above. No manual entries needed here.
 
   # ---- Cities ----
   - name: "City of Santa Cruz - City Council"

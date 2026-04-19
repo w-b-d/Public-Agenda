@@ -3,11 +3,13 @@ import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -105,7 +107,35 @@ export default function MeetingDetailScreen() {
 
         <Section title="Video">
           {meeting.video_url ? (
-            <LinkButton label="Open meeting video" url={meeting.video_url} />
+            <>
+              <View style={styles.videoWrap}>
+                {Platform.OS === 'web' ? (
+                  // react-native-webview doesn't support the web target.
+                  // On web we render a plain iframe instead — same effect.
+                  // @ts-expect-error — `iframe` isn't a standard RN element but renders fine on web.
+                  <iframe
+                    src={meeting.video_url}
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                    allowFullScreen
+                  />
+                ) : (
+                  <WebView
+                    source={{ uri: meeting.video_url }}
+                    style={{ flex: 1 }}
+                    allowsInlineMediaPlayback
+                    mediaPlaybackRequiresUserAction={false}
+                  />
+                )}
+              </View>
+              <Pressable
+                style={styles.secondaryLink}
+                onPress={() => WebBrowser.openBrowserAsync(meeting.video_url!)}
+              >
+                <ThemedText style={styles.secondaryLinkText}>
+                  Open video in browser
+                </ThemedText>
+              </Pressable>
+            </>
           ) : (
             <ThemedText style={styles.muted}>No video available.</ThemedText>
           )}
@@ -182,4 +212,14 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   linkBtnText: { color: '#fff', fontWeight: '600' },
+  videoWrap: {
+    marginTop: 8,
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: '#000',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  secondaryLink: { marginTop: 8 },
+  secondaryLinkText: { color: '#0a7ea4', fontWeight: '600' },
 });
