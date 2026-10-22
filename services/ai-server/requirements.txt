@@ -1,0 +1,21 @@
+# --- AI servers (notebooks/*.ipynb and colab_server.py, run on a CUDA GPU) ---
+fastapi
+uvicorn
+python-multipart   # required by FastAPI for UploadFile on /transcribe
+pydantic
+nest-asyncio
+pyngrok
+faster-whisper
+torch
+transformers
+bitsandbytes
+accelerate         # required for device_map="auto"
+sentence-transformers  # chatapi.ipynb embeddings
+numpy
+# google.colab is provided by the Colab runtime and is not pip-installable.
+
+# --- Client scripts (main.py, populate_db.py, resummarize.py) ---
+requests
+python-dotenv
+supabase
+yt-dlp             # also needs the ffmpeg binary on PATH for MP3 extraction

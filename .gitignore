@@ -42,3 +42,16 @@ ios
 android
 
 app-example
+
+# Python
+venv/
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+
+# AI server outputs, media, and data exports
+output/
+*.mp3
+*.wav
+*.mp4
+*.csv

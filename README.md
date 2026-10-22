@@ -1,10 +1,10 @@
-# {App Name}
+# Public Agenda
 
 > Local government, for the people it actually governs.
 
-{App Name} is a free, mobile-first app that makes local government accessible to ordinary residents. It aggregates meeting schedules, agendas, and AI-generated plain-language summaries from city councils, boards of supervisors, school boards, planning commissions, and state legislative bodies — so you can see what your local government is about to decide before the decision is made.
+Public Agenda is a free, mobile-first app that makes local government accessible to ordinary residents. It aggregates meeting schedules, agendas, and AI-generated plain-language summaries from city councils, boards of supervisors, school boards, planning commissions, and state legislative bodies — so you can see what your local government is about to decide before the decision is made.
 
-Built during {Hackathon Name} by {Team Name}.
+Built during the Kelp Your Neighbor Hackathon (Apr 17–19, 2026) by Kristopher Church, Brandon Algarra, and William Brady-Diaz.
 
 ---
 
@@ -14,7 +14,7 @@ Most local government tracking tools today are built for corporate lobbyists and
 
 The result is an information asymmetry: developers, industry groups, and lobbyists know what's on next Tuesday's agenda; the residents affected usually don't, until the decision has already been made.
 
-A handful of civic tech projects have started closing this gap — [citymeetings.nyc](https://citymeetings.nyc) for New York, [Civic Sunlight](https://civicsunlight.com) for parts of Maine, [OpenCouncil](https://github.com/schemalabz/opencouncil) for Greek municipalities — but they're fragmented, mostly single-jurisdiction, and almost all web or newsletter-first. {App Name} aims to be the missing piece: a mobile-native, multi-jurisdiction, US-focused app that any resident can download for free.
+A handful of civic tech projects have started closing this gap — [citymeetings.nyc](https://citymeetings.nyc) for New York, [Civic Sunlight](https://civicsunlight.com) for parts of Maine, [OpenCouncil](https://github.com/schemalabz/opencouncil) for Greek municipalities — but they're fragmented, mostly single-jurisdiction, and almost all web or newsletter-first. Public Agenda aims to be the missing piece: a mobile-native, multi-jurisdiction, US-focused app that any resident can download for free.
 
 ## Who this is for
 
@@ -45,9 +45,33 @@ This project is explicitly *not* aimed at lobbyists, corporate government-relati
 
 ## Architecture
 
-{App Name} is a monorepo containing a mobile app, a data pipeline, and infrastructure configuration. Supabase handles the traditional "backend" concerns (database, auth, API, push-notification storage), so we can focus our effort on the parts that are actually novel: scraping fragmented government data sources and generating useful summaries from them.
+Public Agenda is a monorepo containing a mobile app, a data pipeline, and infrastructure configuration. Supabase handles the traditional "backend" concerns (database, auth, API, push-notification storage), so we can focus our effort on the parts that are actually novel: scraping fragmented government data sources and generating useful summaries from them.
 
-### System overview
+### As built at the hackathon
+
+```
+ County sites (Legistar, CivicClerk,            ┌───────────────────────────┐
+ PrimeGov, meeting video pages)                 │  Mobile app               │
+          │                                     │  (Expo / React Native)    │
+          ▼                                     └──────┬─────────────┬──────┘
+ ┌──────────────────┐   meetings,    ┌──────────┐      │ reads       │ meeting chat
+ │ services/scraper │ ── agendas, ─> │ Supabase │ <────┘ meetings,   │ (POST /chat)
+ └──────────────────┘   video URLs   └──────────┘   summaries        ▼
+                                          ▲             ┌───────────────────────────┐
+                                          └──────────── │ services/ai-server        │
+                                 transcripts, summaries,│ Whisper + Qwen on a Colab │
+                                 attendees              │ GPU (populate_db.py)      │
+                                                        └───────────────────────────┘
+```
+
+- **Mobile app → Supabase:** the app reads meetings, bodies, people, and AI summaries directly with the Supabase JS client.
+- **Scraper → Supabase:** the scraper writes jurisdictions, bodies, meetings, and meeting video URLs.
+- **AI server → Supabase:** `populate_db.py` sends meeting audio to the transcription server and writes the transcript, summary, and attendees back to the `meetings` row.
+- **Mobile chat → AI server:** `MeetingChat` calls the chat server's `/chat` endpoint directly, using `EXPO_PUBLIC_COLAB_URL`.
+
+See [services/ai-server/README.md](services/ai-server/README.md) for details and the Colab demo setup.
+
+### System overview (original plan)
 
 ```
 ┌──────────────────┐       ┌──────────────────┐       ┌──────────────────┐
@@ -74,7 +98,8 @@ This project is explicitly *not* aimed at lobbyists, corporate government-relati
 ├── apps/
 │   └── mobile/          # Expo / React Native app (TypeScript)
 ├── services/
-│   └── scraper/         # Python pipeline: scraping + LLM summarization
+│   ├── scraper/         # Python pipeline: scraping + LLM summarization
+│   └── ai-server/       # Transcription, summaries, and meeting chat (Colab GPU)
 ├── supabase/            # Supabase schema, migrations, edge functions
 ├── docs/                # Additional design notes and data-source research
 ├── .gitignore
@@ -146,13 +171,13 @@ See each subdirectory's own README for more detail.
 
 ## Status
 
-🚧 Actively under development during {Hackathon Name}, {dates}. Expect things to break.
+🚧 Built during the Kelp Your Neighbor Hackathon (Apr 17–19, 2026). Expect things to break.
 
-## Team
+## Who built what
 
-- {Name} — {role}
-- {Name} — {role}
-- {Name} — {role}
+- **Kristopher Church**: Supabase schema and scaffolding; config-driven scraper with Legistar, CivicClerk, and PrimeGov adapters plus meeting-video URL scraping; jurisdiction configs; politician profiles; sign-in and starred events; filter by public official.
+- **Brandon Algarra**: repo structure and Expo project setup; styled UI; paginated event feed, calendar, and search with autocomplete; advanced filtering; transcript view.
+- **William Brady-Diaz**: AI server (Whisper transcription, Qwen summaries and attendee extraction, meeting chat); Supabase batch population scripts; in-app MeetingChat.
 
 ## License
 
