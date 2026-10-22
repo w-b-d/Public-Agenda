@@ -23,13 +23,12 @@ A handful of civic tech projects have started closing this gap — [citymeetings
 - **Newcomers to a city** who don't yet know which bodies govern them or when they meet.
 - **Anyone who's ever found out about a local decision after it was already made** and wished they'd had a heads-up.
 
-This project is explicitly *not* aimed at lobbyists, corporate government-relations professionals, or anyone whose use case is already well-served by paid B2B tools.
 
 ## Scope
 
 ### MVP (hackathon deliverable)
 
-- Aggregate meeting schedules for {target government bodies in target cities} — e.g. {City} City Council, {County} Board of Supervisors, {School District} Board of Education, and {Planning Commission}.
+- Aggregate meeting schedules for {target government bodies in target cities} — e.g. Monterey City Council, and Monterey Board of Supervisors
 - Display agendas with AI-generated plain-language summaries.
 - Let users filter by address so they only see bodies that govern them.
 - Let users subscribe to topics (housing, schools, transportation, etc.) and receive push notifications when those topics appear on an upcoming agenda.
@@ -169,9 +168,7 @@ python -m scraper.run --city {target-city}
 
 See each subdirectory's own README for more detail.
 
-## Status
 
-🚧 Built during the Kelp Your Neighbor Hackathon (Apr 17–19, 2026). Expect things to break.
 
 ## Who built what
 
@@ -179,10 +176,4 @@ See each subdirectory's own README for more detail.
 - **Brandon Algarra**: repo structure and Expo project setup; styled UI; paginated event feed, calendar, and search with autocomplete; advanced filtering; transcript view.
 - **William Brady-Diaz**: AI server (Whisper transcription, Qwen summaries and attendee extraction, meeting chat); Supabase batch population scripts; in-app MeetingChat.
 
-## License
 
-{License — MIT is a reasonable default for hackathon projects; pick something and be explicit.}
-
-## Acknowledgments
-
-Inspired by and indebted to the work of Vikram Oberoi ([citymeetings.nyc](https://citymeetings.nyc)), the team at [Civic Sunlight](https://civicsunlight.com), and [Schema Labs' OpenCouncil](https://github.com/schemalabz/opencouncil). If you've thought hard about civic transparency before us, we almost certainly learned from you.
